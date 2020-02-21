@@ -13,8 +13,8 @@ import numpy as np
 import pandas as pd
 import h5py
 from tqdm import tqdm
-from skimage.transform import resize
 from skimage.util import img_as_ubyte
+from utils import set_up_environment, maximum_center_crop
 
 from PIL import Image
 
@@ -46,11 +46,10 @@ def preprocess(argv=None):
     # http://www.robots.ox.ac.uk/~vgg/data/vgg_face2/meta_infor.html
     # CSV file is of the form: NAME_ID, X, Y, W, H
     bbox_df = pd.read_csv(FLAGS.bbox_file)
-
-    current_identity = bbox_df.loc[0, 'NAME_ID'].split('/')[0]
     image_batch = []
 
     for index, row in tqdm(bbox_df.iterrows()):
+        current_identity = name_id.split('/')[0]
         name_id, x, y, w, h = row
         x = max(x, 0)
         y = max(y, 0)
@@ -61,9 +60,11 @@ def preprocess(argv=None):
         image = np.array(image)
 
         # Crop, resize and cast to bytes
-        cropped_image = image[x:x + w, y:y+h]
-        resized_image = resize(cropped_image, (FLAGS.resize_dimension, FLAGS.resize_dimension, 3))
-        ubyte_image   = img_as_ubyte(resized_image)
+        cropped_image  = image[x:x + w, y:y+h]
+        centered_image = maximum_center_crop(cropped_image)
+        resized_image  = np.array(Image.fromarray(centered_image).resize(size=(FLAGS.resize_dimension,
+                                                                              FLAGS.resize_dimension)))
+        ubyte_image    = img_as_ubyte(resized_image)
         image_batch.append(ubyte_image)
 
         # When we are done with a batch of images (one identity)...
@@ -81,6 +82,7 @@ def preprocess(argv=None):
                 dataset_file.create_dataset('images', data=image_batch)
 
             image_batch = []
+
 
 if __name__ == '__main__':
     app.run(preprocess)
