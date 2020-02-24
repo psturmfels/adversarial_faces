@@ -49,8 +49,8 @@ def preprocess(argv=None):
     image_batch = []
 
     for index, row in tqdm(bbox_df.iterrows()):
-        current_identity = name_id.split('/')[0]
         name_id, x, y, w, h = row
+        current_identity = name_id.split('/')[0]
         x = max(x, 0)
         y = max(y, 0)
 
