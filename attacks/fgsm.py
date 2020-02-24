@@ -36,9 +36,9 @@ class FGSMAttacker(Attacker):
         gradient = tape.gradient(difference, noisy_image_batch)
         sign_of_gradient = tf.cast(tf.sign(gradient), image_batch.dtype)
 
-        perturbed_image = noisy_image_batch + sign_of_gradient * epsilon
+        perturbed_image_batch = noisy_image_batch + sign_of_gradient * epsilon
         perturbed_image_batch = tf.clip_by_value(perturbed_image_batch, image_batch - epsilon, image_batch + epsilon)
-        return perturbed_image
+        return perturbed_image_batch
 
     def target_image_attack(self, image_batch, target_batch, epsilon=0.1, **kwargs):
         """
@@ -70,5 +70,5 @@ class FGSMAttacker(Attacker):
         sign_of_gradient = tf.cast(tf.sign(gradient), image_batch.dtype)
 
         # Subtract the gradient because we want to minimize the distance
-        perturbed_image = image_batch - sign_of_gradient * epsilon
-        return perturbed_image
+        perturbed_image_batch = image_batch - sign_of_gradient * epsilon
+        return perturbed_image_batch
