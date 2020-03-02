@@ -9,12 +9,13 @@ for the FaceNet model available from
 https://github.com/nyoki-mtl/keras-facenet
 """
 import os
+import tensorflow as tf
 import numpy as np
 import pandas as pd
 import h5py
 from tqdm import tqdm
 from skimage.util import img_as_ubyte
-from utils import set_up_environment, maximum_center_crop
+from utils import set_up_environment, maximum_center_crop, prewhiten, l2_normalize
 
 from PIL import Image
 
@@ -33,6 +34,13 @@ flags.DEFINE_string('bbox_file',
 flags.DEFINE_integer('resize_dimension',
                      160,
                      'Dimension to resize all images to')
+flags.DEFINE_string('visible_devices', '0', 'CUDA parameter')
+flags.DEFINE_integer('batch_size',
+                     64,
+                     'Batch size to use for creating embeddings')
+flags.DEFINE_string('model_path',
+                    'facenet_keras.h5',
+                    'Path to keras model')
 
 flags.DEFINE_boolean('process_train', False, 'Turn on this flag to process the training set')
 
@@ -83,6 +91,35 @@ def preprocess(argv=None):
 
             image_batch = []
 
+def write_embeddings(argv=None):
+    """
+    Runs the embedding model over the pre-processed dataset and saves the embeddings into h5py datasets.
+    """
+    set_up_environment(visible_devices=FLAGS.visible_devices)
+    model = tf.keras.models.load_model(FLAGS.model_path)
+
+    identities = os.listdir(FLAGS.image_directory)
+    for identity in tqdm(identities):
+        image_file = os.path.join(FLAGS.image_directory,
+                                  identity,
+                                  'images.h5')
+
+        with h5py.File(image_file, 'r') as f:
+            images = f['images'][:]
+
+        images_whitened = prewhiten(images).astype(np.float32)
+        embeddings = model.predict(images_whitened, batch_size=FLAGS.batch_size)
+        normalized_embeddings = l2_normalize(embeddings)
+
+        os.makedirs(os.path.join(FLAGS.output_directory,
+                                 identity),
+                    exist_ok=True)
+
+        embedding_path = os.path.join(FLAGS.output_directory,
+                                      identity,
+                                      'embeddings.h5')
+        with h5py.File(embedding_path, 'w') as dataset_file:
+            dataset_file.create_dataset('embeddings', data=normalized_embeddings)
 
 if __name__ == '__main__':
-    app.run(preprocess)
+    app.run(write_embeddings)

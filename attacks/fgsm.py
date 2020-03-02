@@ -31,7 +31,7 @@ class FGSMAttacker(Attacker):
             tape.watch(noisy_image_batch)
             noisy_embedding = self.model(noisy_image_batch)
             noisy_embedding = self._l2_normalize(noisy_embedding)
-            difference = tf.sqrt(tf.reduce_sum(tf.square(noisy_embedding - original_embedding)))
+            difference = self._l2_distance(noisy_embedding, original_embedding)
 
         gradient = tape.gradient(difference, noisy_image_batch)
         sign_of_gradient = tf.cast(tf.sign(gradient), image_batch.dtype)
@@ -61,10 +61,7 @@ class FGSMAttacker(Attacker):
             tape.watch(image_batch)
             batch_embedding = self.model(image_batch)
             batch_embedding = self._l2_normalize(batch_embedding)
-
-            # We might have to normalize embeddings before taking
-            # squared l2 norm difference. Will check later.
-            difference = tf.sqrt(tf.reduce_sum(tf.square(target_embedding - batch_embedding)))
+            difference = self._l2_distance(target_embedding, batch_embedding)
 
         gradient = tape.gradient(difference, image_batch)
         sign_of_gradient = tf.cast(tf.sign(gradient), image_batch.dtype)

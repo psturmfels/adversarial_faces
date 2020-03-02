@@ -4,6 +4,7 @@
 *.tf
 *.xml
 *.png
+*.csv
 
 # jupyter
 MANIFEST

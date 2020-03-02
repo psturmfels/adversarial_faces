@@ -67,6 +67,27 @@ class Attacker():
                                         epsilon))
         return output
 
+    def _l2_norm(self, x, axis=1):
+        """
+        Returns the L2 norms of a batch of vectors.
+
+        Args:
+            x: A batch of tensors
+        """
+        if axis is not None:
+            return tf.sqrt(tf.reduce_sum(tf.square(x), axis=axis))
+        else:
+            return tf.sqrt(tf.reduce_sum(tf.square(x)))
+
+    def _l2_distance(self, x, y):
+        """
+        Returns the L2 distance between two batches of vectors.
+
+        Args:
+            x, y: Two TF tensors that represent batches of vectors.
+        """
+        return self._l2_norm(x - y)
+
     def _generate_noise(self,
                         epsilon,
                         image_batch,
