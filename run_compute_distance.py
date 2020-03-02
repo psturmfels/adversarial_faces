@@ -1,5 +1,4 @@
 import os
-import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -10,7 +9,6 @@ from skimage.util import img_as_ubyte
 from sklearn.metrics import pairwise_distances
 
 from utils import prewhiten, l2_normalize
-from attacks.pgd import PGDAttacker
 
 from absl import app, flags
 
@@ -59,7 +57,7 @@ def _top_k_recall(sorted_indices,
     return np.sum(top_k_identities == identity)
 
 def run_attack(argv=None):
-    identities = os.listdir(FLAGS.image_directory)
+    identities = os.listdir(FLAGS.embedding_directory)
 
     # First we pre-load all of the embeddings into a dictionary.
     print('Preloading embeddings...')
@@ -68,7 +66,7 @@ def run_attack(argv=None):
     modified_embeddings_matrix = []
     for identity in tqdm(identities):
         embeddings = _read_identity(identity=identity,
-                                    top_dir=FLAGS.embedding_dir,
+                                    top_dir=FLAGS.embedding_directory,
                                     file_name='embeddings.h5',
                                     dataset_name='embeddings',
                                     prewhiten=False)
@@ -118,12 +116,11 @@ def run_attack(argv=None):
         # Now, for each image that belongs to this identity, we get the
         # distance between the clean image and all other images:
         # the modified remaining images and the background clean images
-        for image_index, image in enumerate(tqdm(images_whitened)):
-            current_clean_embedding = clean_embeddings[image_index]
+        for embedding_index, current_clean_embedding in enumerate(tqdm(clean_embeddings)):
             current_clean_embedding = np.expand_dims(current_clean_embedding, axis=0)
 
             remaining_modified_embeddings = np.delete(modified_embeddings,
-                                                      image_index,
+                                                      embedding_index,
                                                       axis=0)
             compare_embeddings = np.concatenate([background_embeddings,
                                                 remaining_modified_embeddings],
@@ -148,12 +145,10 @@ def run_attack(argv=None):
                                              identity,
                                              k=k)
                 performance_dict['identity'].append(identity)
-                performance_dict['image_index'].append(image_index)
+                performance_dict['image_index'].append(embedding_index)
                 performance_dict['recall_count'].append(recall_count)
                 performance_dict['k'].append(k)
-                performance_dict['num_possible'].append(len(images_whitened))
-
-        previous_images_whitened = images_whitened
+                performance_dict['num_possible'].append(len(clean_embeddings))
 
     # Finally, we write this data to a massive csv file
     # I anticipate each csv will have nearly 200,000 rows.
