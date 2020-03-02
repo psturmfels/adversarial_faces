@@ -22,18 +22,12 @@ flags.DEFINE_string('output_directory',
 flags.DEFINE_string('embedding_directory',
                     '/projects/leelab3/image_datasets/vgg_face/test_preprocessed/',
                     'Top level directory for embeddings')
-flags.DEFINE_string('visible_devices',
-                    '1',
-                    'CUDA parameter')
 flags.DEFINE_string('attack_type',
                     'self_distance',
                     'One of `self_distance`, `target_image`, `none`')
 flags.DEFINE_float('epsilon',
                    0.04,
                    'Maximum perturbation distance for adversarial attacks.')
-flags.DEFINE_integer('batch_size',
-                     128,
-                     'Batch size to use for gradient-based adversarial attacks')
 
 def _read_identity(identity,
                    top_dir,
@@ -80,14 +74,17 @@ def run_attack(argv=None):
                                     prewhiten=False)
         clean_embeddings_matrix.append(embeddings)
 
-        data_directory = os.path.join(FLAGS.output_directory,
-                                      identity,
-                                      FLAGS.attack_type)
-        modified_embeddings = _read_identity(identity=identity,
-                                             top_dir=data_directory,
-                                             file_name='epsilon_{}.h5'.format(FLAGS.epsilon),
-                                             dataset_name='embeddings',
-                                             prewhiten=False)
+        if FLAGS.attack_type == 'none':
+            modified_embeddings = embeddings
+        else:
+            data_directory = os.path.join(FLAGS.output_directory,
+                                          identity,
+                                          FLAGS.attack_type)
+            modified_embeddings = _read_identity(identity=identity,
+                                                 top_dir=data_directory,
+                                                 file_name='epsilon_{}.h5'.format(FLAGS.epsilon),
+                                                 dataset_name='embeddings',
+                                                 prewhiten=False)
         modified_embeddings_matrix.append(modified_embeddings)
 
         for _ in range(len(embeddings)):
