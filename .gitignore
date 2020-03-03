@@ -5,6 +5,7 @@
 *.xml
 *.png
 *.csv
+*.pdf
 
 # jupyter
 MANIFEST

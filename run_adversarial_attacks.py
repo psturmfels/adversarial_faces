@@ -120,7 +120,7 @@ def run_attack(argv=None):
         data_path = os.path.join(data_directory, 'epsilon_{}.h5'.format(FLAGS.epsilon))
 
         with h5py.File(data_path, 'w') as dataset_file:
-            dataset_file.create_dataset('embeddings', data=normalized_embeddings)
+            dataset_file.create_dataset('embeddings', data=modified_embeddings)
             dataset_file.create_dataset('images', data=modified_images)
 
         previous_images_whitened = images_whitened
