@@ -20,12 +20,27 @@ flags.DEFINE_string('output_directory',
 flags.DEFINE_string('embedding_directory',
                     '/projects/leelab3/image_datasets/vgg_face/test_preprocessed/',
                     'Top level directory for embeddings')
+flags.DEFINE_string('output_file',
+                    'results/self_distance/epsilon_0.04.csv',
+                    'Output directory for CSV file')
 flags.DEFINE_string('attack_type',
                     'self_distance',
                     'One of `self_distance`, `target_image`, `none`')
+flags.DEFINE_boolean('modify_dataset',
+                     False,
+                     'Set to True to modify the dataset as well as the identity')
+flags.DEFINE_boolean('modify_image',
+                     False,
+                     'Set to True to modify the target image')
+flags.DEFINE_boolean('modify_identity',
+                     False,
+                     'Set to True to modify the remaining images in from the identity')
 flags.DEFINE_float('epsilon',
                    0.04,
                    'Maximum perturbation distance for adversarial attacks.')
+flags.DEFINE_integer('num_matrix_jobs',
+                     8,
+                     'Number of jobs to use during distance computation.')
 
 def _read_identity(identity,
                    top_dir,
@@ -75,12 +90,11 @@ def run_attack(argv=None):
         if FLAGS.attack_type == 'none':
             modified_embeddings = embeddings
         else:
-            data_directory = os.path.join(FLAGS.output_directory,
-                                          identity,
-                                          FLAGS.attack_type)
+            file_name = os.path.join(FLAGS.attack_type,
+                                     'epsilon_{}.h5'.format(FLAGS.epsilon))
             modified_embeddings = _read_identity(identity=identity,
-                                                 top_dir=data_directory,
-                                                 file_name='epsilon_{}.h5'.format(FLAGS.epsilon),
+                                                 top_dir=FLAGS.output_directory,
+                                                 file_name=file_name,
                                                  dataset_name='embeddings',
                                                  prewhiten=False)
         modified_embeddings_matrix.append(modified_embeddings)
@@ -107,32 +121,46 @@ def run_attack(argv=None):
         clean_embeddings = clean_embeddings_matrix[identity_vector == identity]
         modified_embeddings = modified_embeddings_matrix[identity_vector == identity]
 
-        background_embeddings = clean_embeddings_matrix[identity_vector != identity]
-        background_identities = identity_vector[identity_vector != identity]
+        if FLAGS.modify_dataset:
+            background_embeddings = modified_embeddings_matrix[identity_vector != identity]
+        else:
+            background_embeddings = clean_embeddings_matrix[identity_vector != identity]
 
+        background_identities = identity_vector[identity_vector != identity]
         modified_identities = np.array([identity] * (len(modified_embeddings) - 1),
                                        dtype=background_identities.dtype)
 
         # Now, for each image that belongs to this identity, we get the
         # distance between the clean image and all other images:
         # the modified remaining images and the background clean images
-        for embedding_index, current_clean_embedding in enumerate(tqdm(clean_embeddings)):
-            current_clean_embedding = np.expand_dims(current_clean_embedding, axis=0)
+        if FLAGS.modify_image:
+            image_iterable = enumerate(tqdm(modified_embeddings))
+        else:
+            image_iterable = enumerate(tqdm(clean_embeddings))
 
-            remaining_modified_embeddings = np.delete(modified_embeddings,
-                                                      embedding_index,
-                                                      axis=0)
+        for embedding_index, current_image_embedding in image_iterable:
+            current_image_embedding = np.expand_dims(current_image_embedding, axis=0)
+
+            if FLAGS.modify_identity:
+                remaining_identity_embeddings = np.delete(modified_embeddings,
+                                                          embedding_index,
+                                                          axis=0)
+            else:
+                remaining_identity_embeddings = np.delete(clean_embeddings,
+                                                          embedding_index,
+                                                          axis=0)
+
             compare_embeddings = np.concatenate([background_embeddings,
-                                                remaining_modified_embeddings],
+                                                remaining_identity_embeddings],
                                                 axis=0)
             compare_identities = np.concatenate([background_identities,
                                                  modified_identities],
                                                  axis=0)
 
-            distances_to_clean_embedding = pairwise_distances(current_clean_embedding,
+            distances_to_clean_embedding = pairwise_distances(current_image_embedding,
                                                               compare_embeddings,
                                                               metric='euclidean',
-                                                              n_jobs=10)
+                                                              n_jobs=FLAGS.num_matrix_jobs)
             distances_to_clean_embedding = np.squeeze(distances_to_clean_embedding)
             sorted_distances_indices = np.argsort(distances_to_clean_embedding)
 
@@ -154,10 +182,9 @@ def run_attack(argv=None):
     # I anticipate each csv will have nearly 200,000 rows.
     # However, I would rather write the raw data and do aggregation afterwards,
     # just in case we want to plot the data in many different ways.
-    os.makedirs('results/{}/'.format(FLAGS.attack_type), exist_ok=True)
+    os.makedirs(os.path.dirname(FLAGS.output_file), exist_ok=True)
     performance_df = pd.DataFrame(performance_dict)
-    performance_df.to_csv('results/{}/epsilon_{}.csv'.format(FLAGS.attack_type,
-                                                             FLAGS.epsilon),
+    performance_df.to_csv(FLAGS.output_file,
                           index=False)
 
 if __name__ == '__main__':

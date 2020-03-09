@@ -28,22 +28,12 @@ def _population_confidence(x,
                          loc=np.mean(x),
                          scale=st.sem(x))
 
-def line_bar_plot(x,
-                  y,
-                  data,
-                  ax=None,
-                  dpi=100,
-                  xlabel=None,
-                  ylabel=None,
-                  title=None,
-                  use_bootstrap=False,
-                  **kwargs):
-    if 'color' not in kwargs:
-        kwargs['color'] = 'royalblue'
-
-    if ax is None:
-        fig, ax = plt.subplots(dpi=dpi)
-
+def _plot_vals(data,
+               x,
+               y,
+               use_bootstrap,
+               label=None,
+               **kwargs):
     grouped_data = data.groupby(x)
     line_values = grouped_data.mean()[y]
     x_values = grouped_data.mean().index
@@ -62,12 +52,60 @@ def line_bar_plot(x,
     plt.plot(x_values,
              line_values,
              lw=1.5,
+             label=label,
              **kwargs)
     plt.fill_between(x_values,
                      lower_conf,
                      upper_conf,
                      alpha=0.25,
                      **kwargs)
+
+def line_bar_plot(x,
+                  y,
+                  data,
+                  color_by=None,
+                  ax=None,
+                  dpi=100,
+                  xlabel=None,
+                  ylabel=None,
+                  title=None,
+                  use_bootstrap=False,
+                  legend_title=None,
+                  **kwargs):
+    if 'loc' not in kwargs:
+        loc = 'upper right'
+    else:
+        loc = kwargs['loc']
+
+
+    if ax is None:
+        fig, ax = plt.subplots(dpi=dpi)
+
+    if color_by is not None:
+        colors = ['royalblue',
+                  'firebrick',
+                  'forestgreen',
+                  'darkorange']
+        if 'colors' in kwargs:
+            colors = kwargs.pop('colors')
+
+        for c, color_value in enumerate(data[color_by].unique()):
+            kwargs['color'] = colors[c]
+            _plot_vals(data[data[color_by] == color_value],
+                       x,
+                       y,
+                       use_bootstrap,
+                       label=color_value,
+                       **kwargs)
+        plt.legend(loc=loc, title=legend_title)
+    else:
+        if 'color' not in kwargs:
+            kwargs['color'] = 'royalblue'
+        _plot_vals(data,
+                   x,
+                   y,
+                   use_bootstrap,
+                   **kwargs)
 
     ax.spines["top"].set_alpha(0.1)
     ax.spines["bottom"].set_alpha(1)
