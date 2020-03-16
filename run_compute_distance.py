@@ -1,3 +1,4 @@
+
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -35,6 +36,11 @@ flags.DEFINE_boolean('modify_image',
 flags.DEFINE_boolean('modify_identity',
                      False,
                      'Set to True to modify the remaining images in from the identity')
+flags.DEFINE_float('subsample_rate',
+                   1.0,
+                   """Fraction of instances of the identity
+                   to modify. A floating point number between 0 and 1.
+                   """)
 flags.DEFINE_float('epsilon',
                    0.04,
                    'Maximum perturbation distance for adversarial attacks.')
@@ -145,6 +151,28 @@ def run_attack(argv=None):
                 remaining_identity_embeddings = np.delete(modified_embeddings,
                                                           embedding_index,
                                                           axis=0)
+
+
+                if FLAGS.subsample_rate < 1.0:
+                    remaining_id_embeddings_clean = np.delete(clean_embeddings,
+                                                              embedding_index,
+                                                              axis=0)
+                    total_identity_samples = remaining_identity_embeddings.shape[0]
+                    num_to_sample = int(FLAGS.subsample_rate * total_identity_samples)
+
+                    modify_sample_indices = np.random.choice(total_identity_samples,
+                                                             size=num_to_sample,
+                                                             replace=False)
+                    modify_sample_mask = np.full(shape=(total_identity_samples,),
+                                                 fill_value=False)
+                    modify_sample_mask[modify_sample_indices] = True
+                    clean_sample_mask = ~modify_sample_mask
+
+                    sampled_modified = remaining_identity_embeddings[modify_sample_mask]
+                    sampled_clean = remaining_id_embeddings_clean[clean_sample_mask]
+
+                    remaining_identity_embeddings = np.concatenate([sampled_modified, sampled_clean],
+                                                                   axis=0)
             else:
                 remaining_identity_embeddings = np.delete(clean_embeddings,
                                                           embedding_index,
