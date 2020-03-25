@@ -14,13 +14,15 @@ from attacks.pgd import PGDAttacker
 
 from absl import app, flags
 
+VGG_BASE = '/data/vggface'
+
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string('image_directory',
-                    '/projects/leelab3/image_datasets/vgg_face/test_preprocessed/',
+                    os.path.join(VGG_BASE, 'test_preprocessed'),
                     'Top level directory for images')
 flags.DEFINE_string('output_directory',
-                    '/projects/leelab3/image_datasets/vgg_face/test_perturbed/',
+                    os.path.join(VGG_BASE, 'test_perturbed'),
                     'Top level directory to output adversarially-modified images')
 flags.DEFINE_string('visible_devices',
                     '1',
@@ -80,6 +82,14 @@ def _attack_images(attacker,
                                                           target_images,
                                                           epsilon=FLAGS.epsilon,
                                                           verbose=False)
+        elif FLAGS.attack_type == 'random_target':
+            target_vectors = np.random.uniform((num_to_sample, 128))
+            modified_batch = attacker.target_vector_attack(batch_images,
+                                                          target_vectors,
+                                                          normalize_target_embedding=True,
+                                                          epsilon=FLAGS.epsilon,
+                                                          verbose=False)
+
         elif FLAGS.attack_type == 'none':
             modified_batch = batch_images
         else:

@@ -136,3 +136,58 @@ class PGDAttacker(Attacker):
 
         return best_perturbation
 
+    def target_vector_attack(self, image_batch, target_embedding, normalize_target_embedding=True, epsilon=0.1, **kwargs):
+        """
+        Attacks a batch of images using PGD using the
+        target-image strategy.
+
+        Args:
+            image_batch: A batch of images. The images to perturb.
+            target_embedding: the target embeddings to send adversarial images to
+            normalize_target_embedding: if True, l2 normalizes the target_embedding
+            epsilon: Maximum perturbation amount
+            kwargs: Varies depending on attack.
+        """
+        kwargs = self._get_default_kwargs(kwargs, image_batch)
+        image_batch  = tf.convert_to_tensor(image_batch)
+
+        if normalize_target_embedding:
+            target_embedding = self._l2_normalize(target_embedding)
+
+        perturbed_image_batch = image_batch
+
+        previous_difference = np.inf
+        best_perturbation = perturbed_image_batch
+        patience_count = 0
+
+        iterable = range(kwargs['num_iters'])
+        if kwargs['verbose']:
+            iterable = tqdm(iterable)
+
+        for i in iterable:
+            with tf.GradientTape() as tape:
+                tape.watch(perturbed_image_batch)
+                batch_embedding = self.model(perturbed_image_batch)
+                batch_embedding = self._l2_normalize(batch_embedding)
+                difference = self._l2_distance(target_embedding, batch_embedding)
+                mean_difference = tf.reduce_mean(difference)
+
+            if mean_difference < previous_difference:
+                previous_difference = mean_difference
+                best_perturbation = perturbed_image_batch
+                patience_counnt = 0
+            elif patience_count >= kwargs['patience']:
+                break
+            else:
+                patience_count += 1
+
+            gradient = tape.gradient(difference, perturbed_image_batch)
+            sign_of_gradient = tf.cast(tf.sign(gradient), perturbed_image_batch.dtype)
+
+            # Subtract the gradient because we want to minimize the distance
+            perturbed_image_batch = perturbed_image_batch - sign_of_gradient * kwargs['alpha']
+            perturbed_image_batch = tf.clip_by_value(perturbed_image_batch, image_batch - epsilon, image_batch + epsilon)
+            perturbed_image_batch = tf.clip_by_value(perturbed_image_batch, kwargs['bounds'][0], kwargs['bounds'][1])
+
+        return best_perturbation
+
