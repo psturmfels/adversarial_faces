@@ -28,10 +28,10 @@ flags.DEFINE_string('visible_devices',
                     '1',
                     'CUDA parameter')
 flags.DEFINE_string('model_path',
-                    'facenet_keras.h5',
+                    'keras-facenet/model/facenet_keras.h5',
                     'Path to keras model')
 flags.DEFINE_string('attack_type',
-                    'self_distance',
+                    'random_target',
                     'One of `self_distance`, `target_image`')
 flags.DEFINE_float('epsilon',
                    0.04,
@@ -83,7 +83,7 @@ def _attack_images(attacker,
                                                           epsilon=FLAGS.epsilon,
                                                           verbose=False)
         elif FLAGS.attack_type == 'random_target':
-            target_vectors = np.random.uniform((num_to_sample, 128))
+            target_vectors = np.random.uniform(low=-100.0, high=100.0, size=(num_to_sample, 128))
             modified_batch = attacker.target_vector_attack(batch_images,
                                                           target_vectors,
                                                           normalize_target_embedding=True,

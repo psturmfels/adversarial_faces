@@ -150,10 +150,9 @@ class PGDAttacker(Attacker):
         """
         kwargs = self._get_default_kwargs(kwargs, image_batch)
         image_batch  = tf.convert_to_tensor(image_batch)
-
+        target_embedding = tf.convert_to_tensor(target_embedding, dtype=tf.float32)
         if normalize_target_embedding:
             target_embedding = self._l2_normalize(target_embedding)
-
         perturbed_image_batch = image_batch
 
         previous_difference = np.inf
