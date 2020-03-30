@@ -13,13 +13,15 @@ from utils import prewhiten, l2_normalize
 
 from absl import app, flags
 
+VGG_BASE = '/data/vggface'
+
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string('output_directory',
-                    '/projects/leelab3/image_datasets/vgg_face/test_perturbed/',
+                    os.path.join(VGG_BASE, 'test_perturbed'),
                     'Top level directory to output adversarially-modified images')
 flags.DEFINE_string('embedding_directory',
-                    '/projects/leelab3/image_datasets/vgg_face/test_preprocessed/',
+                    os.path.join(VGG_BASE, 'test_preprocessed'),
                     'Top level directory for embeddings')
 flags.DEFINE_string('output_file',
                     'results/self_distance/epsilon_0.04.csv',
