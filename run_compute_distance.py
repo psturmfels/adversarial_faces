@@ -23,11 +23,8 @@ flags.DEFINE_string('output_directory',
 flags.DEFINE_string('embedding_directory',
                     os.path.join(VGG_BASE, 'test_preprocessed'),
                     'Top level directory for embeddings')
-flags.DEFINE_string('output_file',
-                    'results/self_distance/epsilon_0.04.csv',
-                    'Output directory for CSV file')
 flags.DEFINE_string('attack_type',
-                    'self_distance',
+                    'random_target',
                     'One of `self_distance`, `target_image`, `none`')
 flags.DEFINE_boolean('modify_dataset',
                      False,
@@ -212,9 +209,10 @@ def run_attack(argv=None):
     # I anticipate each csv will have nearly 200,000 rows.
     # However, I would rather write the raw data and do aggregation afterwards,
     # just in case we want to plot the data in many different ways.
-    os.makedirs(os.path.dirname(FLAGS.output_file), exist_ok=True)
+    output_file = os.path.join("results", FLAGS.attack_type, 'epsilon_{}.h5'.format(FLAGS.epsilon))
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
     performance_df = pd.DataFrame(performance_dict)
-    performance_df.to_csv(FLAGS.output_file,
+    performance_df.to_csv(output_file,
                           index=False)
 
 if __name__ == '__main__':
