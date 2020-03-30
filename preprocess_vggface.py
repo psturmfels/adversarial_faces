@@ -28,7 +28,7 @@ flags.DEFINE_string('image_directory',
                     os.path.join(VGG_BASE, 'test_preprocessed'),
                     'Top level directory for images')
 flags.DEFINE_string('output_directory',
-                    os.path.join(VGG_BASE, 'test_perturbed'),
+                    os.path.join(VGG_BASE, 'test_preprocessed'),
                     'Top level directory to output adversarially-modified images')
 flags.DEFINE_string('bbox_file',
                     os.path.join(VGG_BASE, 'bb_landmark/loose_bb_test.csv'),
