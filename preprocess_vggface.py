@@ -21,15 +21,17 @@ from PIL import Image
 
 from absl import app, flags
 
+VGG_BASE = '/data/vggface'
+
 FLAGS = flags.FLAGS
 flags.DEFINE_string('image_directory',
-                    '/projects/leelab3/image_datasets/vgg_face/test/',
+                    os.path.join(VGG_BASE, 'test_preprocessed'),
                     'Top level directory for images')
 flags.DEFINE_string('output_directory',
-                    '/projects/leelab3/image_datasets/vgg_face/test_preprocessed/',
-                    'Directory to output processed images')
+                    os.path.join(VGG_BASE, 'test_preprocessed'),
+                    'Top level directory to output adversarially-modified images')
 flags.DEFINE_string('bbox_file',
-                    '/projects/leelab3/image_datasets/vgg_face/bb_landmark/loose_bb_test.csv',
+                    os.path.join(VGG_BASE, 'bb_landmark/loose_bb_test.csv'),
                     'CSV file containing bounding boxes for each desired image')
 flags.DEFINE_integer('resize_dimension',
                      160,
@@ -39,7 +41,7 @@ flags.DEFINE_integer('batch_size',
                      64,
                      'Batch size to use for creating embeddings')
 flags.DEFINE_string('model_path',
-                    'facenet_keras.h5',
+                    'keras-facenet/model/facenet_keras.h5',
                     'Path to keras model')
 
 flags.DEFINE_boolean('process_train', False, 'Turn on this flag to process the training set')
