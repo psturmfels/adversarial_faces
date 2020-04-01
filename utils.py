@@ -44,8 +44,8 @@ def read_sampled_identities(filepath):
         num_id, num_im = f.readline().strip("\n").split(" ")
         num_id, num_im = int(num_id), int(num_im)
         for i in range(num_id):
-           identity = f.readline().strip("\n")
-           id2im[identity] = [f.readline().strip("\n") for _ in range(num_im)]
+            identity = f.readline().strip("\n")
+            id2im[identity] = [f.readline().strip("\n") for _ in range(num_im)]
     return id2im
 
 def prewhiten(x):
