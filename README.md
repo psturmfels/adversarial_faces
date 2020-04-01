@@ -13,10 +13,10 @@ A repository for exploring how adversarial machine learning can provide privacy 
 
 # Attack Terminology
 * `self_distance`: push embedding as far away from where it original was as possible
- * resulting images stored as `VGG_BASE/test_perturbed/nXXXXXX/self_distance/epsilon_XXX.h5`
+  * resulting images stored as `VGG_BASE/test_perturbed/nXXXXXX/self_distance/epsilon_XXX.h5`
 * `target_image`: pick an image of a different subject and use its embedding as a target
- * resulting images stored as `VGG_BASE/test_perturbed/nXXXXXX/target_image/epsilon_XXX.h5`
+  * resulting images stored as `VGG_BASE/test_perturbed/nXXXXXX/target_image/epsilon_XXX.h5`
 * [DEPRECATED/ABANDONED] `random_target`: sample a vector in the output space at random to use as the target
 * `community_naive_same`: modify all images not belonging to identity A so that they embed to the same, randomly sampled vector corresponding to A
- * resulting images stored as `VGG_BASE/test_perturbed_sampled/nXXXXXX/community_naive_same/nYYYYYY/epsilon_ZZZ.h5` where the `XXXXX` identity is the ground truth and the `YYYYYY` identity is the target
+  * resulting images stored as `VGG_BASE/test_perturbed_sampled/nXXXXXX/community_naive_same/nYYYYYY/epsilon_ZZZ.h5` where the `XXXXX` identity is the ground truth and the `YYYYYY` identity is the target
 
