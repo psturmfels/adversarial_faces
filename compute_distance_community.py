@@ -88,7 +88,7 @@ def _adversarial_set_for_identity(
     return np.array(all_embeddings)
 
 def _write_to_csv(performance_dict):
-    output_file = os.path.join("results", FLAGS.attack_type, 'epsilon_{}.h5'.format(FLAGS.epsilon))
+    output_file = os.path.join("results", FLAGS.attack_type, 'epsilon_{}.csv'.format(FLAGS.epsilon))
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     performance_df = pd.DataFrame(performance_dict)
     performance_df.to_csv(output_file,
