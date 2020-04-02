@@ -147,7 +147,7 @@ def main(argv=None):
             # to remove them, assume the smallest distance is 0 and belongs to the vector itself
             # in the output of argsort, that should come up first
             # TODO: are there cases where this breaks because of e.g. float precision?
-            sort_indices = np.argsort(lookup_distances)[0:]
+            sort_indices = np.argsort(lookup_distances)[1:]
 
             # with the largest indices into the lookup set in hand, select only indices
             # that are in the top k from the ground truth of the lookup set
@@ -159,7 +159,7 @@ def main(argv=None):
                 performance_dict['image_index'].append(query_embedding_index)
                 performance_dict['recall_count'].append(recall_count)
                 performance_dict['k'].append(k)
-                performance_dict['num_possible'].append(len(lookup_set) - 1)
+                performance_dict['num_possible'].append(len(curr_query_embeddings) - 1)
 
     _write_to_csv(performance_dict)
 
