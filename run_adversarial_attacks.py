@@ -150,8 +150,6 @@ def run_attack_community():
     attacker = PGDAttacker(model)
     identities = os.listdir(FLAGS.image_directory)
 
-    previous_images_whitened = _read_identity(identities[1])
-
     for identity_index, identity in enumerate(identities):
         print('========Running on identity {}, {}/{}========'.format(identity,
                                                                      identity_index,
