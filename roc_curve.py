@@ -13,11 +13,23 @@ VGG_BASE = '/data/vggface'
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('preprocessed_directory',
-                    os.path.join(VGG_BASE, 'test_preprocessed'),
+                    os.path.join(VGG_BASE, 'test_preprocessed_sampled'),
+                    'Top level directory for images')
+flags.DEFINE_string('perturbed_directory',
+                    os.path.join(VGG_BASE, 'test_perturbed_sampled'),
                     'Top level directory for images')
 flags.DEFINE_string('model_path',
                     'keras-facenet/model/facenet_keras.h5',
                     'Path to keras model')
+flags.DEFINE_boolean('community_attack',
+                    True,
+                    'If True, assumes folder structure is that of community attacks and uses adversarial images targeted to identity as negatives')
+flags.DEFINE_string('attack_type',
+                    'community_naive_same',
+                    'Attack type to use when loading images')
+flags.DEFINE_float('epsilon',
+                   0.02,
+                   'Maximum perturbation distance for adversarial attacks.')
 
 def _read_embeddings(identity):
     """
@@ -29,6 +41,22 @@ def _read_embeddings(identity):
     with h5py.File(image_file, 'r') as f:
         return f['embeddings'][:]
 
+def _read_adversarial_embeddings(true_identity, target_identity):
+    """
+    Helper function to read h5 dataset files.
+    Params:
+        true_identity: the ground truth identity of the image that was modified to be target
+        target_identity: the targeted identity
+    """
+    image_file = os.path.join(FLAGS.perturbed_directory,
+                              true_identity,
+                              FLAGS.attack_type,
+                              target_identity,
+                              'epsilon_{}.h5'.format(FLAGS.epsilon))
+    with h5py.File(image_file, 'r') as f:
+        return f['embeddings'][:]
+
+
 def main(argv=None):
     seed = 2104202021
     random.seed(2104202021)
@@ -37,6 +65,8 @@ def main(argv=None):
     identities = os.listdir(FLAGS.preprocessed_directory)
     positive = []
     negative = []
+
+    print("****** Computing pairwise distances *******")
     for identity in tqdm(identities):
         this_id_vectors = _read_embeddings(identity)
         n_true = len(this_id_vectors)
@@ -61,7 +91,15 @@ def main(argv=None):
         # we get exactly n choose 2 ground truth negative vectors
         while len(negative_vectors) < ((n_true - 2) // 2):
             other_id = np.random.choice(other_identities)
-            other_embeddings = _read_embeddings(other_id)
+
+            if FLAGS.community_attack:
+                other_embeddings = _read_adversarial_embeddings(
+                        true_identity=other_id,
+                        target_identity=identity
+                )
+            else:
+                other_embeddings = _read_embeddings(other_id)
+
             embedding_index = np.random.choice(len(other_embeddings))
             if not ((other_id, embedding_index)) in seen:
                 seen.add((other_id, embedding_index))
@@ -75,18 +113,29 @@ def main(argv=None):
         )
         negative.extend(negative_distances.flatten())
 
-    thresholds = np.arange(1e-6, 3.0, 0.05)
+    thresholds = np.arange(1e-6, 2.0, 0.1)
     tprs = []
     fprs = []
     n_pos = float(len(positive))
     n_neg = float(len(negative))
-    for t in thresholds:
+
+    print("**** Computing ROC curve *****")
+    for t in tqdm(thresholds):
         tp = np.sum(positive < t)
         fp = np.sum(negative < t)
         tprs.append(tp / n_pos)
         fprs.append(fp / n_neg)
 
-    with h5py.File("results/roc_curve_{}.txt".format(FLAGS.preprocessed_directory.split("/")[-1]), "w") as f:
+    if not FLAGS.community_attack:
+        save_file_name = "results/roc_curve_{}.txt".format(FLAGS.preprocessed_directory.split("/")[-1])
+    else:
+        save_file_name = "results/roc_curve_{perturbed_dir}_{attack_type}_epsilon_{epsilon}.txt".format(
+                perturbed_dir=FLAGS.preprocessed_directory.split("/")[-1],
+                attack_type=FLAGS.attack_type,
+                epsilon=FLAGS.epsilon
+        )
+
+    with h5py.File(save_file_name, "w") as f:
         f.create_dataset('positive', data=positive)
         f.create_dataset('negative', data=negative)
         f.create_dataset('thresholds', data=thresholds)
