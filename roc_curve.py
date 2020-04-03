@@ -13,7 +13,7 @@ VGG_BASE = '/data/vggface'
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('preprocessed_directory',
-                    os.path.join(VGG_BASE, 'test_preprocessed_sampled'),
+                    os.path.join(VGG_BASE, 'test_preprocessed'),
                     'Top level directory for images')
 flags.DEFINE_string('model_path',
                     'keras-facenet/model/facenet_keras.h5',
@@ -75,7 +75,7 @@ def main(argv=None):
         )
         negative.extend(negative_distances.flatten())
 
-    thresholds = np.arange(1e-6, 2.0, 0.1)
+    thresholds = np.arange(1e-6, 3.0, 0.05)
     tprs = []
     fprs = []
     n_pos = float(len(positive))
