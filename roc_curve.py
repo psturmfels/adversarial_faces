@@ -127,7 +127,13 @@ def main(argv=None):
         fprs.append(fp / n_neg)
 
     if not FLAGS.community_attack:
-        save_file_name = "results/roc_curve_{}.txt".format(FLAGS.preprocessed_directory.split("/")[-1])
+        if not ("perturbed" in  FLAGS.preprocessed_directory):
+            save_file_name = "results/roc_curve_{}.txt".format(FLAGS.preprocessed_directory.split("/")[-1])
+        else:
+            save_file_name = "results/roc_curve_{attack_type}_epsilon_{epsilon}.txt".format(
+                attack_type=FLAGS.attack_type,
+                epsilon=FLAGS.epsilon
+        )
     else:
         save_file_name = "results/roc_curve_{perturbed_dir}_{attack_type}_epsilon_{epsilon}.txt".format(
                 perturbed_dir=FLAGS.preprocessed_directory.split("/")[-1],
