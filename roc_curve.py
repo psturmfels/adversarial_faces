@@ -27,6 +27,11 @@ flags.DEFINE_boolean('community_attack',
 flags.DEFINE_string('attack_type',
                     'community_naive_same',
                     'Attack type to use when loading images')
+flags.DEFINE_string('strategy',
+                    'random_image',
+                    'Sampling strategy for negative examples; one of `random_image` or `random_identity`')
+#random_image continuously samples any other image from any other identity
+#random_identity only samples a random other identity and uses all of its images
 flags.DEFINE_float('epsilon',
                    0.02,
                    'Maximum perturbation distance for adversarial attacks.')
@@ -83,27 +88,34 @@ def main(argv=None):
         positive.extend(self_distances)
 
         other_identities = list(set(identities) - set([identity]))
-        negative_vectors = []
-        seen = set()
-        # to get roughly the same number of comparison as the base identity to itself,
-        # which is n choose 2, we will compute (n_true - 2)/2 other vectors;
-        # then, when we do pairwise comparisons between n and (n-2)/2 vectors,
-        # we get exactly n choose 2 ground truth negative vectors
-        while len(negative_vectors) < ((n_true - 2) // 2):
+
+        if FLAGS.strategy == 'random_image':
+            negative_vectors = []
+            seen = set()
+            # to get roughly the same number of comparison as the base identity to itself,
+            # which is n choose 2, we will compute (n_true - 2)/2 other vectors;
+            # then, when we do pairwise comparisons between n and (n-2)/2 vectors,
+            # we get exactly n choose 2 ground truth negative vectors
+            while len(negative_vectors) < ((n_true - 2) // 2):
+                other_id = np.random.choice(other_identities)
+
+                if FLAGS.community_attack:
+                    other_embeddings = _read_adversarial_embeddings(
+                            true_identity=other_id,
+                            target_identity=identity
+                    )
+                else:
+                    other_embeddings = _read_embeddings(other_id)
+
+                embedding_index = np.random.choice(len(other_embeddings))
+                if not ((other_id, embedding_index)) in seen:
+                    seen.add((other_id, embedding_index))
+                    negative_vectors.append(other_embeddings[embedding_index])
+        elif FLAGS.strategy == 'random_identity':
             other_id = np.random.choice(other_identities)
-
-            if FLAGS.community_attack:
-                other_embeddings = _read_adversarial_embeddings(
-                        true_identity=other_id,
-                        target_identity=identity
-                )
-            else:
-                other_embeddings = _read_embeddings(other_id)
-
-            embedding_index = np.random.choice(len(other_embeddings))
-            if not ((other_id, embedding_index)) in seen:
-                seen.add((other_id, embedding_index))
-                negative_vectors.append(other_embeddings[embedding_index])
+            negative_vectors = _read_embeddings(other_id)
+        else:
+            raise Exception("Unsupported negative examples sampling strategy in FLAG strategy {}".format(FLAGS.strategy))
 
         negative_distances = pairwise_distances(
                 this_id_vectors,
@@ -128,17 +140,19 @@ def main(argv=None):
 
     if not FLAGS.community_attack:
         if not ("perturbed" in  FLAGS.preprocessed_directory):
-            save_file_name = "results/roc_curve_{}.txt".format(FLAGS.preprocessed_directory.split("/")[-1])
+            save_file_name = "results/roc_curve_{}_{}.txt".format(FLAGS.preprocessed_directory.split("/")[-1], FLAGS.strategy)
         else:
-            save_file_name = "results/roc_curve_{attack_type}_epsilon_{epsilon}.txt".format(
+            save_file_name = "results/roc_curve_{attack_type}_epsilon_{epsilon}_{strategy}.txt".format(
                 attack_type=FLAGS.attack_type,
-                epsilon=FLAGS.epsilon
+                epsilon=FLAGS.epsilon,
+                strategy=FLAGS.strategy
         )
     else:
-        save_file_name = "results/roc_curve_{perturbed_dir}_{attack_type}_epsilon_{epsilon}.txt".format(
+        save_file_name = "results/roc_curve_{perturbed_dir}_{attack_type}_epsilon_{epsilon}_{strategy}.txt".format(
                 perturbed_dir=FLAGS.preprocessed_directory.split("/")[-1],
                 attack_type=FLAGS.attack_type,
-                epsilon=FLAGS.epsilon
+                epsilon=FLAGS.epsilon,
+                strategy=FLAGS.strategy
         )
 
     with h5py.File(save_file_name, "w") as f:
