@@ -8,12 +8,16 @@ from sklearn.metrics import pairwise_distances
 from utils import set_up_environment, maximum_center_crop, prewhiten, l2_normalize, read_sampled_identities
 from absl import app, flags
 import random
+from PIL import Image
 
 VGG_BASE = '/data/vggface'
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('preprocessed_directory',
                     os.path.join(VGG_BASE, 'test_preprocessed_sampled'),
+                    'Top level directory for images')
+flags.DEFINE_string('raw_directory',
+                    os.path.join(VGG_BASE, 'test'),
                     'Top level directory for images')
 flags.DEFINE_string('perturbed_directory',
                     os.path.join(VGG_BASE, 'test_perturbed_sampled'),
@@ -22,7 +26,7 @@ flags.DEFINE_string('model_path',
                     'keras-facenet/model/facenet_keras.h5',
                     'Path to keras model')
 flags.DEFINE_boolean('community_attack',
-                    True,
+                    False,
                     'If True, assumes folder structure is that of community attacks and uses adversarial images targeted to identity as negatives')
 flags.DEFINE_string('attack_type',
                     'community_naive_same',
@@ -32,19 +36,70 @@ flags.DEFINE_string('strategy',
                     'Sampling strategy for negative examples; one of `random_image` or `random_identity`')
 #random_image continuously samples any other image from any other identity
 #random_identity only samples a random other identity and uses all of its images
+flags.DEFINE_boolean('raw_images',
+                    False,
+                    'If raw_images, uses identities at preprocessed_directory cropped on the fly according to bbox_file and processed thru network; otherwise reads h5 file')
 flags.DEFINE_float('epsilon',
                    0.02,
                    'Maximum perturbation distance for adversarial attacks.')
+flags.DEFINE_integer('resize_dimension',
+                     160,
+                     'Dimension to resize all images to')
+flags.DEFINE_string('bbox_file',
+                    os.path.join(VGG_BASE, 'bb_landmark/loose_bb_test.csv'),
+                    'CSV file containing bounding boxes for each desired image')
+flags.DEFINE_string('visible_devices', '0', 'CUDA parameter')
+
+BOUNDING_BOXES = None
+model = None
+
+def load_crop_pillow_provided_landmarks(path):
+    x, y, w, h = BOUNDING_BOXES[path]
+    img = Image.open(os.path.join(FLAGS.raw_directory, path))
+    assert not (img is None)
+    img = img.crop((x, y, x + w, y + h))
+    return np.array(img.resize((FLAGS.resize_dimension, FLAGS.resize_dimension)))
+
+def prewhiten(x):
+    mean = np.mean(x)
+    std = np.std(x)
+    std_adj = np.maximum(std, 1.0/np.sqrt(x.size))
+    y = np.multiply(np.subtract(x, mean), 1/std_adj)
+    return y
+
+def embeddings_from_raw_images(identity):
+    global BOUNDING_BOXES
+    if BOUNDING_BOXES is None:
+        BOUNDING_BOXES = {}
+    with open(FLAGS.bbox_file) as f:
+        header = next(f)
+        for l in f:
+            l = l.strip("\n")
+            name_id, x, y, w, h = l.split(",")
+            name_id = name_id.strip("\"") + ".jpg"
+            BOUNDING_BOXES[name_id] = (int(x), int(y), int(w), int(h))
+
+    global model
+    if model is None:
+        set_up_environment(visible_devices=FLAGS.visible_devices)
+        model = tf.keras.models.load_model(FLAGS.model_path)
+
+    subj_images = np.array([load_crop_pillow_provided_landmarks(os.path.join(identity, x)) \
+            for x in os.listdir(os.path.join(FLAGS.raw_directory, identity))])
+    return l2_normalize(model.predict(subj_images))
 
 def _read_embeddings(identity):
     """
     Helper function to read h5 dataset files.
     """
-    image_file = os.path.join(FLAGS.preprocessed_directory,
+    if FLAGS.raw_images:
+        return embeddings_from_raw_images(identity)
+    else:
+        image_file = os.path.join(FLAGS.preprocessed_directory,
                               identity,
                               'embeddings.h5')
-    with h5py.File(image_file, 'r') as f:
-        return f['embeddings'][:]
+        with h5py.File(image_file, 'r') as f:
+            return f['embeddings'][:]
 
 def _read_adversarial_embeddings(true_identity, target_identity):
     """
@@ -53,6 +108,7 @@ def _read_adversarial_embeddings(true_identity, target_identity):
         true_identity: the ground truth identity of the image that was modified to be target
         target_identity: the targeted identity
     """
+    assert not FLAGS.raw_images, "Adversarial embeddings cannot be computed from raw images"
     image_file = os.path.join(FLAGS.perturbed_directory,
                               true_identity,
                               FLAGS.attack_type,
@@ -67,7 +123,11 @@ def main(argv=None):
     random.seed(2104202021)
     np.random.seed(2104202021)
 
-    identities = os.listdir(FLAGS.preprocessed_directory)
+    if FLAGS.raw_images:
+        identities = os.listdir(FLAGS.raw_directory)
+    else:
+        identities = os.listdir(FLAGS.preprocessed_directory)
+
     positive = []
     negative = []
 
@@ -147,6 +207,8 @@ def main(argv=None):
                 epsilon=FLAGS.epsilon,
                 strategy=FLAGS.strategy
         )
+    elif FLAGS.raw_images:
+        save_file_name = "results/roc_curve_from_raw.txt"
     else:
         save_file_name = "results/roc_curve_{perturbed_dir}_{attack_type}_epsilon_{epsilon}_{strategy}.txt".format(
                 perturbed_dir=FLAGS.preprocessed_directory.split("/")[-1],
