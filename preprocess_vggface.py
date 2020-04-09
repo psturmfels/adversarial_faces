@@ -62,34 +62,23 @@ def preprocess():
     # http://www.robots.ox.ac.uk/~vgg/data/vgg_face2/meta_infor.html
     # CSV file is of the form: NAME_ID, X, Y, W, H
     bbox_df = pd.read_csv(FLAGS.bbox_file)
-    image_batch = []
 
     if FLAGS.sampled_identities != "":
         sampled = read_sampled_identities(FLAGS.sampled_identities)
+        sampled = pd.DataFrame(np.array([["{}/{}".format(k, v.split(".")[0]) for v in sampled[k]] for k in sampled]).flatten())
+        # do a join to filter selected identities and frames
+        bbox_df = pd.merge(left=bbox_df, right=sampled, left_on='NAME_ID', right_on=0)
 
-    filtered_rows = []
+    image_batch = []
     for index, row in tqdm(bbox_df.iterrows()):
-        name_id, x, y, w, h = row
-        current_identity, current_image = name_id.split('/')
-        current_image += ".jpg"
-        new_row = [current_identity, current_image, x, y, w, h]
-        # bypass identities not in sample, if a sampled file is provided
-        if FLAGS.sampled_identities == "" or \
-                ((current_identity in sampled) and (current_image in sampled[current_identity])):
-            filtered_rows.append(new_row)
-
-    del bbox_df
-
-    for index, row in enumerate(filtered_rows):
-        current_identity, current_image, x, y, w, h = row
+        name_id, x, y, w, h, _ = row
+        current_identity = name_id.split('/')[0]
         x = max(x, 0)
         y = max(y, 0)
-
         # Read in the image
         image_path = os.path.join(FLAGS.image_directory, name_id + '.jpg')
         image = Image.open(image_path)
         image = np.array(image)
-
         # Crop, resize and cast to bytes
         cropped_image  = image[x:x + w, y:y+h]
         centered_image = maximum_center_crop(cropped_image)
@@ -97,15 +86,12 @@ def preprocess():
                                                                               FLAGS.resize_dimension)))
         ubyte_image    = img_as_ubyte(resized_image)
         image_batch.append(ubyte_image)
-
         # When we are done with a batch of images (one identity)...
-        if index == len(filtered_rows) - 1 or \
-           current_identity != filtered_rows[index + 1][0]:
-
+        if index == len(bbox_df) - 1 or \
+           current_identity != bbox_df.loc[index + 1, 'NAME_ID'].split('/')[0]:
             image_batch = np.stack(image_batch, axis=0)
             os.makedirs(os.path.join(FLAGS.output_directory,
                                      current_identity), exist_ok=True)
-
             # ...we save the batch of images belonging to that identity to an
             # h5 file.
             file_path = os.path.join(FLAGS.output_directory, current_identity, 'images.h5')
@@ -113,6 +99,7 @@ def preprocess():
                 dataset_file.create_dataset('images', data=image_batch)
 
             image_batch = []
+
 
 def write_embeddings():
     """
