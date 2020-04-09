@@ -77,13 +77,9 @@ def preprocess():
         y = max(y, 0)
         # Read in the image
         image_path = os.path.join(FLAGS.image_directory, name_id + '.jpg')
-        image = Image.open(image_path)
-        image = np.array(image)
-        # Crop, resize and cast to bytes
-        cropped_image  = image[x:x + w, y:y+h]
-        centered_image = maximum_center_crop(cropped_image)
-        resized_image  = np.array(Image.fromarray(centered_image).resize(size=(FLAGS.resize_dimension,
-                                                                              FLAGS.resize_dimension)))
+        image = Image.open(image_path).crop((x, y, x + w, y + h)).resize(size=(FLAGS.resize_dimension,
+                                                                              FLAGS.resize_dimension))
+        resized_image = np.array(image)
         ubyte_image    = img_as_ubyte(resized_image)
         image_batch.append(ubyte_image)
         # When we are done with a batch of images (one identity)...
