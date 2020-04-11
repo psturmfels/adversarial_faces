@@ -132,10 +132,29 @@ def recall_given_dist(
 
     return final
 
+def discovery_given_dist(
+    dist_self,
+    dist_negative,
+    k
+):
+    dist_self = np.sort(dist_self)
+    dist_negative = np.sort(dist_negative)
+    i_neg = 0
+    for i in range(k):
+        if i_neg < len(dist_negative):
+            if dist_self[0] < dist_negative[i_neg]:
+                return 1.0
+            i_neg += 1
+        elif i < k:
+            return 1.0
+
+    return 0.0
+
 def recall(
     base_embeddings,
     negative_embeddings,
-    k
+    k,
+    mode="recall"
 ):
     self_distances = pairwise_distances(
         base_embeddings,
@@ -147,11 +166,15 @@ def recall(
         negative_embeddings
     )
 
+    func = recall_given_dist if mode == "recall" else discovery_given_dist if mode == "discovery" else None
+    if func is None:
+        raise Exception("Unsupported mode {}".format(mode))
+
     recall = []
     for indx, dist_self in enumerate(self_distances):
         dist_self = np.delete(dist_self, indx)
         dist_negative = negative_distances[indx]
-        r = recall_given_dist(dist_self, dist_negative, k)
+        r = func(dist_self, dist_negative, k)
         recall.append(r)
     return np.mean(recall)
 
@@ -161,7 +184,8 @@ def recall_for_target(
     epsilons,
     path_to_adversarial,
     path_to_clean,
-    ks
+    ks,
+    mode="recall"
 ):
     query_embeddings = []
     adv = {eps: [] for eps in epsilons}
@@ -183,7 +207,7 @@ def recall_for_target(
                 ), "r") as f:
                     adv[epsilon].extend(f["embeddings"][:])
 
-    return [[recall(query_embeddings, adv[epsilon], k) for epsilon in epsilons] for k in ks]
+    return [[recall(query_embeddings, adv[epsilon], k, mode) for epsilon in epsilons] for k in ks]
 
 def plot_recall(
     path_to_adversarial="/data/vggface/test_perturbed_sampled/{true}/community_naive_same/{target}/epsilon_{epsilon}.h5",
@@ -191,7 +215,8 @@ def plot_recall(
     epsilons=[0.0, 0.02, 0.04, 0.06, 0.08, 0.1],
     identities=read_sampled_identities("../sampled_identities.txt").keys(),
     ks=[1, 5, 10, 100, 1000],
-    colors=['#0017ad', '#2d67ed', '#37a0f0', '#37e6f0','#000000']
+    colors=['#0017ad', '#2d67ed', '#37a0f0', '#37e6f0','#000000'],
+    mode="recall"
 ):
     from matplotlib import pyplot as plt
     recall_for_targets = np.ones((len(identities), len(ks), len(epsilons))) * (-1.0)
@@ -203,7 +228,8 @@ def plot_recall(
             epsilons,
             path_to_adversarial,
             path_to_clean,
-            ks
+            ks,
+            mode
         )
 
     recall_for_targets = np.mean(recall_for_targets, axis=0)
@@ -220,7 +246,7 @@ def plot_recall(
 
     ax.set_ylabel("Recall Percentage")
     ax.set_xlabel("Epsilon (Perturbation Amount)")
-    ax.set_title("Recall from top hits community_naive_same")
+    ax.set_title("{} from top hits community_naive_same".format(mode))
     ax.set_ylim([-0.1, 1.1])
     ax.legend()
     plt.show()
@@ -232,6 +258,7 @@ def plot_topk(
     path_to_adversarial="/data/vggface/test_perturbed_sampled/{true}/community_naive_same/{target}/epsilon_{epsilon}.h5",
     path_to_clean="/data/vggface/test_preprocessed_sampled/{id}/embeddings.h5",
     identities=read_sampled_identities("../sampled_identities.txt").keys(),
+    mode="recall"
 ):
     from matplotlib import pyplot as plt
     query_embeddings = []
@@ -272,7 +299,7 @@ def plot_topk(
         ax[row][col].set_ylabel("Distance to image".format(indx))
         ax[row][col].set_xlabel("Top nth image")
         ax[row][col].set_title("Image index {} recall@{}={:.2f}".format(
-            indx, k, recall_given_dist(dist_self, dist_neg, k)))
+            indx, k, recall_given_dist(dist_self, dist_neg, k, mode)))
         ax[row][col].set_ylim([-0.1, 1.4])
     fig.tight_layout(pad=3.0, rect=[0, 0.03, 1, 0.95])
     fig.suptitle("Closest {} images to each image of {} at epsilon={}".format(
