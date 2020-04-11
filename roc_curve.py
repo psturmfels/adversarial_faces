@@ -22,7 +22,7 @@ flags.DEFINE_string('model_path',
                     'keras-facenet/model/facenet_keras.h5',
                     'Path to keras model')
 flags.DEFINE_boolean('community_attack',
-                    True,
+                    False,
                     'If True, assumes folder structure is that of community attacks and uses adversarial images targeted to identity as negatives')
 flags.DEFINE_string('attack_type',
                     'community_naive_same',

@@ -31,7 +31,7 @@ flags.DEFINE_string('model_path',
                     'keras-facenet/model/facenet_keras.h5',
                     'Path to keras model')
 flags.DEFINE_string('attack_type',
-                    'community_naive_same',
+                    'community_naive_random',
                     'One of `self_distance`, `target_image`')
 flags.DEFINE_float('epsilon',
                    0.04,
@@ -162,6 +162,9 @@ def run_attack_community():
             if FLAGS.attack_type == "community_naive_same":
                 targets = [target_vectors[0] for _ in range(len(images_whitened))]
                 del target_vectors
+            elif FLAGS.attack_type == "community_naive_random":
+                targets = target_vectors[np.random.choice(len(images_whitened), size=len(images_whitened), replace=True)]
+                del target_vectors
             else:
                 raise Exception("Attack type {} not supported".format(FLAGS.attack_type))
 
@@ -198,11 +201,10 @@ def run_attack_community():
                 dataset_file.create_dataset('images', data=modified_images)
 
 def main(argv=None):
-    if FLAGS.attack_type in set(["community_naive_same"]):
+    if "community" in FLAGS.attack_type:
         run_attack_community()
     else:
         run_attack()
 
 if __name__ == '__main__':
-    #TODO: main method to separate attacks based on whether they are community-based
     app.run(main)
