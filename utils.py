@@ -211,12 +211,13 @@ def recall_for_target(
 
 def plot_recall(
     identities,
-    path_to_adversarial="/data/vggface/test_perturbed_sampled/{true}/community_naive_same/{target}/epsilon_{epsilon}.h5",
-    path_to_clean="/data/vggface/test_preprocessed_sampled/{id}/embeddings.h5",
-    epsilons=[0.0, 0.02, 0.04, 0.06, 0.08, 0.1],
-    ks=[1, 5, 10, 100, 1000],
-    colors=['#0017ad', '#2d67ed', '#37a0f0', '#37e6f0','#000000'],
-    mode="recall"
+    path_to_adversarial,
+    path_to_clean,
+    epsilons,
+    ks,
+    colors,
+    mode,
+    attack_name
 ):
     from matplotlib import pyplot as plt
     recall_for_targets = np.ones((len(identities), len(ks), len(epsilons))) * (-1.0)
@@ -246,19 +247,19 @@ def plot_recall(
 
     ax.set_ylabel("Mean {}".format(mode))
     ax.set_xlabel("Epsilon (Perturbation Amount)")
-    ax.set_title("{} from top hits community_naive_same".format(mode))
+    ax.set_title("{} from top hits {}".format(mode, attack_name))
     ax.set_ylim([-0.1, 1.1])
     ax.legend()
     plt.show()
 
 def plot_topk(
     identities,
-    adversarial_target="n000029",
-    epsilon=0.0,
-    k=5,
-    path_to_adversarial="/data/vggface/test_perturbed_sampled/{true}/community_naive_same/{target}/epsilon_{epsilon}.h5",
-    path_to_clean="/data/vggface/test_preprocessed_sampled/{id}/embeddings.h5",
-    mode="recall"
+    adversarial_target,
+    epsilon,
+    k,
+    path_to_adversarial,
+    path_to_clean,
+    mode
 ):
     from matplotlib import pyplot as plt
     query_embeddings = []

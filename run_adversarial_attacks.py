@@ -165,6 +165,10 @@ def run_attack_community():
             elif FLAGS.attack_type == "community_naive_random":
                 targets = target_vectors[np.random.choice(len(images_whitened), size=len(images_whitened), replace=True)]
                 del target_vectors
+            elif FLAGS.attack_type == "community_naive_mean":
+                mean_target = np.mean(np.array(target_vectors), axis=0)
+                targets = [mean_target for _ in range(len(images_whitened))]
+                del target_vectors
             else:
                 raise Exception("Attack type {} not supported".format(FLAGS.attack_type))
 
