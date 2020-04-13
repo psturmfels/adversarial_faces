@@ -210,10 +210,10 @@ def recall_for_target(
     return [[recall(query_embeddings, adv[epsilon], k, mode) for epsilon in epsilons] for k in ks]
 
 def plot_recall(
+    identities,
     path_to_adversarial="/data/vggface/test_perturbed_sampled/{true}/community_naive_same/{target}/epsilon_{epsilon}.h5",
     path_to_clean="/data/vggface/test_preprocessed_sampled/{id}/embeddings.h5",
     epsilons=[0.0, 0.02, 0.04, 0.06, 0.08, 0.1],
-    identities=read_sampled_identities("../sampled_identities.txt").keys(),
     ks=[1, 5, 10, 100, 1000],
     colors=['#0017ad', '#2d67ed', '#37a0f0', '#37e6f0','#000000'],
     mode="recall"
@@ -244,7 +244,7 @@ def plot_recall(
             color=colors[indx],
         )
 
-    ax.set_ylabel("Recall Percentage")
+    ax.set_ylabel("Mean {}".format(mode))
     ax.set_xlabel("Epsilon (Perturbation Amount)")
     ax.set_title("{} from top hits community_naive_same".format(mode))
     ax.set_ylim([-0.1, 1.1])
@@ -252,12 +252,12 @@ def plot_recall(
     plt.show()
 
 def plot_topk(
+    identities,
     adversarial_target="n000029",
     epsilon=0.0,
     k=5,
     path_to_adversarial="/data/vggface/test_perturbed_sampled/{true}/community_naive_same/{target}/epsilon_{epsilon}.h5",
     path_to_clean="/data/vggface/test_preprocessed_sampled/{id}/embeddings.h5",
-    identities=read_sampled_identities("../sampled_identities.txt").keys(),
     mode="recall"
 ):
     from matplotlib import pyplot as plt
@@ -298,8 +298,8 @@ def plot_topk(
 
         ax[row][col].set_ylabel("Distance to image".format(indx))
         ax[row][col].set_xlabel("Top nth image")
-        ax[row][col].set_title("Image index {} recall@{}={:.2f}".format(
-            indx, k, recall_given_dist(dist_self, dist_neg, k, mode)))
+        ax[row][col].set_title("Image index {} recall@{}={:.2f} discovery@{}={:.1f}".format(
+            indx, k, recall_given_dist(dist_self, dist_neg, k), k, discovery_given_dist(dist_self, dist_neg, k)))
         ax[row][col].set_ylim([-0.1, 1.4])
     fig.tight_layout(pad=3.0, rect=[0, 0.03, 1, 0.95])
     fig.suptitle("Closest {} images to each image of {} at epsilon={}".format(
