@@ -169,6 +169,11 @@ def run_attack_community():
                 mean_target = np.mean(np.array(target_vectors), axis=0)
                 targets = [mean_target for _ in range(len(images_whitened))]
                 del target_vectors
+            elif FLAGS.attack_type == "community_sample_gaussian_model":
+                mean_target = np.mean(np.array(target_vectors), axis=0)
+                std_target = np.std(np.array(target_vectors), axis=0)
+                targets = np.random.normal(mean_target, std_target, size=(len(images_whitened), len(mean_target)))
+                del target_vectors
             else:
                 raise Exception("Attack type {} not supported".format(FLAGS.attack_type))
 
