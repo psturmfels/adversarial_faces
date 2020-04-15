@@ -163,7 +163,8 @@ def run_attack_community():
                 targets = [target_vectors[0] for _ in range(len(images_whitened))]
                 del target_vectors
             elif FLAGS.attack_type == "community_naive_random":
-                targets = target_vectors[np.random.choice(len(images_whitened), size=len(images_whitened), replace=True)]
+                chosen_indices = np.random.choice(len(images_whitened), size=len(images_whitened), replace=True)
+                targets = target_vectors[chosen_indices]
                 del target_vectors
             elif FLAGS.attack_type == "community_naive_mean":
                 mean_target = np.mean(np.array(target_vectors), axis=0)
@@ -208,6 +209,10 @@ def run_attack_community():
             with h5py.File(data_path, 'w') as dataset_file:
                 dataset_file.create_dataset('embeddings', data=modified_embeddings)
                 dataset_file.create_dataset('images', data=modified_images)
+
+                if FLAGS.attack_type == "community_naive_random":
+                    dataset_file.create_dataset('target_indices', data=chosen_indices)
+
 
 def main(argv=None):
     if "community" in FLAGS.attack_type:
