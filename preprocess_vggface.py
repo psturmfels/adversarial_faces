@@ -21,7 +21,8 @@ from PIL import Image
 
 from absl import app, flags
 
-VGG_BASE = '/data/vggface'
+VGG_BASE = '/projects/leelab3/image_datasets/vgg_face/'
+#VGG_BASE = '/data/vggface'
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('image_directory',
@@ -71,7 +72,8 @@ def preprocess():
 
     image_batch = []
     for index, row in tqdm(bbox_df.iterrows()):
-        name_id, x, y, w, h, _ = row
+#         name_id, x, y, w, h, _ = row
+        name_id, x, y, w, h = row
         current_identity = name_id.split('/')[0]
         x = max(x, 0)
         y = max(y, 0)
@@ -95,7 +97,6 @@ def preprocess():
                 dataset_file.create_dataset('images', data=image_batch)
 
             image_batch = []
-
 
 def write_embeddings():
     """
