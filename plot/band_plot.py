@@ -33,6 +33,7 @@ def _plot_vals(data,
                y,
                use_bootstrap,
                label=None,
+               ax=None,
                **kwargs):
     grouped_data = data.groupby(x)
     line_values = grouped_data.mean()[y]
@@ -49,16 +50,19 @@ def _plot_vals(data,
         lower_conf.append(confidence[0])
         upper_conf.append(confidence[1])
 
-    plt.plot(x_values,
-             line_values,
-             lw=1.5,
-             label=label,
-             **kwargs)
-    plt.fill_between(x_values,
-                     lower_conf,
-                     upper_conf,
-                     alpha=0.25,
-                     **kwargs)
+    if ax is None:
+        ax = plt
+
+    ax.plot(x_values,
+            line_values,
+            lw=1.5,
+            label=label,
+            **kwargs)
+    ax.fill_between(x_values,
+                    lower_conf,
+                    upper_conf,
+                    alpha=0.25,
+                    **kwargs)
 
 def line_bar_plot(x,
                   y,
@@ -77,9 +81,10 @@ def line_bar_plot(x,
     else:
         loc = kwargs['loc']
 
-
     if ax is None:
         fig, ax = plt.subplots(dpi=dpi)
+    else:
+        fig = None
 
     if color_by is not None:
         colors = ['royalblue',
@@ -96,8 +101,9 @@ def line_bar_plot(x,
                        y,
                        use_bootstrap,
                        label=color_value,
+                       ax=ax,
                        **kwargs)
-        plt.legend(loc=loc, title=legend_title)
+        ax.legend(loc=loc, title=legend_title)
     else:
         if 'color' not in kwargs:
             kwargs['color'] = 'royalblue'
@@ -105,6 +111,7 @@ def line_bar_plot(x,
                    x,
                    y,
                    use_bootstrap,
+                   ax=ax,
                    **kwargs)
 
     ax.spines["top"].set_alpha(0.1)

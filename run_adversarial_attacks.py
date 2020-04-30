@@ -14,7 +14,8 @@ from attacks.pgd import PGDAttacker
 
 from absl import app, flags
 
-VGG_BASE = '/data/vggface'
+# VGG_BASE = '/data/vggface'
+VGG_BASE = '/projects/leelab3/image_datasets/vgg_face/'
 
 FLAGS = flags.FLAGS
 
@@ -190,7 +191,7 @@ def run_attack_community_global():
     helper_identities = identities[50:]
 
     for identity_index, target_identity in enumerate(target_identities):
-        print('========Running on identity {}, {}/{}========'.format(identity,
+        print('========Running on identity {}, {}/{}========'.format(target_identity,
                                                                      identity_index,
                                                                      len(identities)))
         target_images = _read_identity(target_identity)
@@ -207,7 +208,7 @@ def run_attack_community_global():
         decoy_indices    = []
 
         helper_image_queue = []
-        for helper_identity in helper_identities:
+        for helper_index, helper_identity in enumerate(helper_identities):
             helper_images = _read_identity(helper_identity)
             # We will send the first 10 images of each helper identity
             # to the target identity, giving us a total of 4500 decoy
@@ -215,7 +216,7 @@ def run_attack_community_global():
             # At maximum, this is roughly 10x the images in the target's lookup set.
             helper_image_queue.append(helper_images[:10])
 
-            decoy_identities += [helper_identity] * 10
+            decoy_identities += [helper_index] * 10
             decoy_indices += [list(range(10))]
 
             if len(helper_image_queue) * 10 >= FLAGS.batch_size:

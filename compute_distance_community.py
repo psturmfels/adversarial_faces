@@ -8,11 +8,9 @@ from tqdm import tqdm
 from skimage.util import img_as_ubyte
 from sklearn.metrics import pairwise_distances
 
-from utils import prewhiten, l2_normalize
-
 from absl import app, flags
 
-VGG_BASE = '/data/vggface'
+VGG_BASE = '/projects/leelab3/image_datasets/vgg_face/'
 
 FLAGS = flags.FLAGS
 
@@ -35,8 +33,7 @@ flags.DEFINE_integer('num_matrix_jobs',
 def _read_identity(identity,
                    top_dir,
                    file_name='images.h5',
-                   dataset_name='images',
-                   prewhiten=False):
+                   dataset_name='images'):
     """
     Helper function to read h5 dataset files.
     """
@@ -45,8 +42,6 @@ def _read_identity(identity,
                                 file_name)
     with h5py.File(dataset_file, 'r') as f:
         data = f[dataset_name][:]
-    if prewhiten:
-        data = prewhiten(data).astype(np.float32)
     return data
 
 def _top_k_recall(sorted_indices,
@@ -94,21 +89,22 @@ def _write_to_csv(performance_dict):
 
 def compute_distance_global(argv=None):
     identities = os.listdir(FLAGS.clean_directory)
+    identities = list(np.sort(identities))
 
     print('Preloading embeddings...')
     identity_vector = []
     clean_embeddings_matrix = []
     for identity in tqdm(identities):
         embeddings = _read_identity(identity=identity,
-                                    top_dir=FLAGS.embedding_directory,
+                                    top_dir=FLAGS.clean_directory,
                                     file_name='embeddings.h5',
-                                    dataset_name='embeddings',
-                                    prewhiten=False)
+                                    dataset_name='embeddings')
         clean_embeddings_matrix.append(embeddings)
         identity_vector += [identity] * len(embeddings)
 
     clean_embeddings_matrix = np.concatenate(clean_embeddings_matrix, axis=0)
     identity_vector = np.array(identity_vector)
+    print(clean_embeddings_matrix.shape)
 
     target_identities = identities[:50]
     helper_identities = identities[50:]
@@ -122,16 +118,17 @@ def compute_distance_global(argv=None):
         'num_decoy': []
     }
     for identity_index, target_identity in enumerate(target_identities):
-        print('========Running on identity {}, {}/{}========'.format(identity,
+        print('========Running on identity {}, {}/{}========'.format(target_identity,
                                                                      identity_index,
-                                                                     len(identities)))
-        †arget_embeddings = clean_embeddings_matrix[identity_vector == identity]
+                                                                     len(target_identities)))
+
+        target_embeddings = clean_embeddings_matrix[identity_vector == target_identity]
         target_embeddings_heldout = target_embeddings[:100]
         target_embeddings_lookup  = target_embeddings[100:]
 
         # We compare distances against the heldout set from the target
-        reference_embeddings = clean_embeddings_matrix[identity_vector != identity]
-        reference_identities = identity_vector[identity_vector != identity]
+        reference_embeddings = clean_embeddings_matrix[identity_vector != target_identity]
+        reference_identities = list(identity_vector[identity_vector != target_identity])
 
         reference_embeddings = np.concatenate([reference_embeddings,
                                                target_embeddings_lookup],
@@ -147,7 +144,7 @@ def compute_distance_global(argv=None):
 
         reference_embeddings = np.concatenate([reference_embeddings,
                                                decoy_embeddings],
-                                              axis=0)
+                                               axis=0)
         reference_identities += ['decoy'] * decoy_embeddings.shape[0]
 
         # Bulk compute distance between identity heldout and references
@@ -156,36 +153,36 @@ def compute_distance_global(argv=None):
                                                           metric='euclidean',
                                                           n_jobs=FLAGS.num_matrix_jobs)
 
-        for t_index, target_embedding in enuemrate(target_embeddings_heldout):
+        for t_index, target_embedding in tqdm(enumerate(target_embeddings_heldout)):
             current_distances = distances_to_clean_embedding[t_index]
             sorted_distances_indices = np.argsort(current_distances)
 
             for num_lookup in [1, 5, 10, 20, 50, 100, len(target_embeddings_lookup)]:
-                filter_mask = np.full(reference_identites, True)
+                for num_decoy in [0, 100, 1000, decoy_embeddings.shape[0]]:
+                    filter_mask = np.full(len(reference_identities), True)
 
-                # We simulated the target having num_lookup photos in the lookup set
-                target_lookup_indices = np.where(reference_identites == target_identity)[0]
-                filter_mask[target_lookup_indices[num_lookup:]] = False
+                    # We simulated the target having num_lookup photos in the lookup set
+                    target_lookup_indices = np.where(np.array(reference_identities) == target_identity)[0]
+                    filter_mask[target_lookup_indices[num_lookup:]] = False
 
-                for num_decoy in [100, 1000, decoy_embeddings.shape[0]]:
-                    decoy_indices = np.where(reference_identities == 'decoy')[0]
-                    filter_mask[decoy_indices[num_decoy]] = False
+                    decoy_indices = np.where(np.array(reference_identities) == 'decoy')[0]
+                    filter_mask[decoy_indices[num_decoy:]] = False
 
                     for k in [1, 10, 100, 1000]:
                         test_distances = current_distances[filter_mask]
-                        test_identites = reference_identites[filter_mask]
-                        recall_count = _top_k_recall(test_distances,
-                                                     test_identites,
+                        test_identities = np.array(reference_identities)[filter_mask]
+                        recall_count = _top_k_recall(np.argsort(test_distances),
+                                                     test_identities,
                                                      target_identity,
                                                      k=k)
                         performance_dict['identity'].append(target_identity)
-                        performance_dict['image_index'].append(embedding_index)
+                        performance_dict['image_index'].append(t_index)
                         performance_dict['recall_count'].append(recall_count)
                         performance_dict['k'].append(k)
                         performance_dict['num_lookup'].append(num_lookup)
                         performance_dict['num_decoy'].append(num_decoy)
 
-    output_file = os.path.join("results", FLAGS.attack_type, 'epsilon_{}.h5'.format(FLAGS.epsilon))
+    output_file = os.path.join("results", FLAGS.attack_type, 'epsilon_{}.csv'.format(FLAGS.epsilon))
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     performance_df = pd.DataFrame(performance_dict)
     performance_df.to_csv(output_file,
