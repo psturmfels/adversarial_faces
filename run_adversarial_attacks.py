@@ -14,8 +14,8 @@ from attacks.pgd import PGDAttacker
 
 from absl import app, flags
 
-# VGG_BASE = '/data/vggface'
-VGG_BASE = '/projects/leelab3/image_datasets/vgg_face/'
+VGG_BASE = '/data/vggface'
+#VGG_BASE = '/projects/leelab3/image_datasets/vgg_face/'
 
 FLAGS = flags.FLAGS
 
@@ -267,7 +267,24 @@ def run_attack_community():
 
         for target_identity in tqdm(list(set(identities) - set([identity]))):
             target_vectors = _read_embeddings(target_identity)
-            targets = _get_targets(target_vectors, len(images_whitened))
+            if FLAGS.attack_type == "community_naive_same":
+                targets = [target_vectors[0] for _ in range(len(images_whitened))]
+                del target_vectors
+            elif FLAGS.attack_type == "community_naive_random":
+                chosen_indices = np.random.choice(len(images_whitened), size=len(images_whitened), replace=True)
+                targets = target_vectors[chosen_indices]
+                del target_vectors
+            elif FLAGS.attack_type == "community_naive_mean":
+                mean_target = np.mean(np.array(target_vectors), axis=0)
+                targets = [mean_target for _ in range(len(images_whitened))]
+                del target_vectors
+            elif FLAGS.attack_type == "community_sample_gaussian_model":
+                mean_target = np.mean(np.array(target_vectors), axis=0)
+                std_target = np.std(np.array(target_vectors), axis=0)
+                targets = np.random.normal(mean_target, std_target, size=(len(images_whitened), len(mean_target)))
+                del target_vectors
+            else:
+                raise Exception("Attack type {} not supported".format(FLAGS.attack_type))
 
             # do attack here
             # notice that this will need to get modified to process in a batched fashion
@@ -300,10 +317,12 @@ def run_attack_community():
             with h5py.File(data_path, 'w') as dataset_file:
                 dataset_file.create_dataset('embeddings', data=modified_embeddings)
                 dataset_file.create_dataset('images', data=modified_images)
+                if FLAGS.attack_type == "community_naive_random":
+                    dataset_file.create_dataset('target_indices', data=chosen_indices)
 
 def main(argv=None):
     if "community" in FLAGS.attack_type:
-        run_attack_community_global()
+        run_attack_community()
     else:
         run_attack()
 
