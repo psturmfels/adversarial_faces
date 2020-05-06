@@ -320,6 +320,10 @@ def run_attack_community():
                 if FLAGS.attack_type == "community_naive_random":
                     dataset_file.create_dataset('target_indices', data=chosen_indices)
 
+                if FLAGS.attack_type == "community_naive_random":
+                    dataset_file.create_dataset('target_indices', data=chosen_indices)
+
+
 def main(argv=None):
     if "community" in FLAGS.attack_type:
         run_attack_community()

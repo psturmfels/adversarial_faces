@@ -154,7 +154,8 @@ def recall(
     base_embeddings,
     negative_embeddings,
     k,
-    mode="recall"
+    mode="recall",
+    target_indices=None
 ):
     self_distances = pairwise_distances(
         base_embeddings,
@@ -171,9 +172,20 @@ def recall(
         raise Exception("Unsupported mode {}".format(mode))
 
     recall = []
+    if not (target_indices is None):
+        target_indices = np.int32(np.array(target_indices))
+
     for indx, dist_self in enumerate(self_distances):
         dist_self = np.delete(dist_self, indx)
         dist_negative = negative_distances[indx]
+
+
+        if not (target_indices is None):
+            # WARNING: assumption here is that target indices refer to the same indices as the
+            # base embeddings we provided to this function
+            current_indx = np.int32(np.ones(len(target_indices)) * indx)
+            dist_negative = dist_negative[target_indices != current_indx]
+
         r = func(dist_self, dist_negative, k)
         recall.append(r)
     return np.mean(recall)
@@ -189,6 +201,11 @@ def recall_for_target(
 ):
     query_embeddings = []
     adv = {eps: [] for eps in epsilons}
+    adv_target_indices = {eps: [] for eps in epsilons}
+
+
+    target_indices_seen = False
+
     with h5py.File(path_to_clean.format(id=adversarial_target), "r") as f:
         query_embeddings.extend(f["embeddings"][:])
 
@@ -206,8 +223,22 @@ def recall_for_target(
                     epsilon=epsilon
                 ), "r") as f:
                     adv[epsilon].extend(f["embeddings"][:])
+                    if "target_indices" in f.keys():
+                        target_indices_seen = True
+                        adv_target_indices[epsilon].extend(f["target_indices"][:])
 
-    return [[recall(query_embeddings, adv[epsilon], k, mode) for epsilon in epsilons] for k in ks]
+                    elif target_indices_seen:
+                        raise Exception("One file had target indices but others do not; target indices may be inconsistent.")
+
+    recall_matrix = [[-1.0 for eps in epsilons] for k in ks]
+    for kindx, k in enumerate(ks):
+        for epsindx, epsilon in enumerate(epsilons):
+            if epsilon in adv_target_indices.keys() and epsilon != 0.0:
+                recall_matrix[kindx][epsindx] = recall(query_embeddings, adv[epsilon], k, mode, adv_target_indices[epsilon])
+            else:
+                recall_matrix[kindx][epsindx] = recall(query_embeddings, adv[epsilon], k, mode, None)
+
+    return recall_matrix
 
 def plot_recall(
     identities,
