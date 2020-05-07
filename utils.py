@@ -210,7 +210,7 @@ class EmbeddingsProducer:
         imgs = [np.array(Image.open(os.path.join(folder, "{}.{}".format(i, ext)))) for i in range(total)]
         imgs = np.array(imgs)
         imgs = prewhiten(imgs)
-        return self.model.predict(imgs)
+        return l2_normalize(self.model.predict(imgs))
 
     def get_embeddings(self, adversarial_target, modified_identity, epsilon):
         embeddings = None
@@ -349,7 +349,8 @@ def plot_topk(
     k,
     path_to_adversarial,
     path_to_clean,
-    mode
+    mode,
+    model_path=None
 ):
     from matplotlib import pyplot as plt
     query_embeddings = []
@@ -359,6 +360,8 @@ def plot_topk(
     with h5py.File(path_to_clean.format(id=adversarial_target), "r") as f:
         query_embeddings.extend(f["embeddings"][:])
 
+    ep = EmbeddingsProducer(path_to_adversarial, model_path=model_path)
+
     for modified_identity in identities:
         if modified_identity == adversarial_target:
             continue
@@ -366,15 +369,18 @@ def plot_topk(
             with h5py.File(path_to_clean.format(id=modified_identity), "r") as f:
                 adv[epsilon].extend(f["embeddings"][:])
         else:
-            with h5py.File(path_to_adversarial.format(
-                    target=adversarial_target,
-                    true=modified_identity,
+            adv_eps, adv_ti = ep.get_embeddings(
+                    adversarial_target=adversarial_target,
+                    modified_identity=modified_identity,
                     epsilon=epsilon
-                ), "r") as f:
-                    adv[epsilon].extend(f["embeddings"][:])
+                )
+            print("Shape of computed embeddings", adv_eps.shape)
+            adv[epsilon].extend(adv_eps)
+
 
     self_distances = pairwise_distances(query_embeddings, query_embeddings)
     negative_distances = pairwise_distances(query_embeddings, adv[epsilon])
+    print("shape of negative distances", negative_distances.shape)
 
     n_clean = len(query_embeddings)
     n_rows = int(np.sqrt(n_clean))
@@ -382,6 +388,8 @@ def plot_topk(
     for indx in range(n_clean):
         dist_self = np.sort(np.delete(self_distances[indx], indx))[:k]
         dist_neg = np.sort(negative_distances[indx])[:k]
+        print("shape of dist neg", dist_neg.shape)
+        print("min max of dist neg", np.min(dist_neg), np.max(dist_neg))
         row = indx // n_rows
         col = indx % n_rows
         ax[row][col].plot(range(min(k, len(dist_self))), dist_self, 'go')
