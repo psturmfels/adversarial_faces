@@ -190,6 +190,30 @@ def recall(
         recall.append(r)
     return np.mean(recall)
 
+class EmbeddingsProducer:
+    '''
+    class to produce embedding given format of path to adversarial images
+    '''
+    def __init__(self, path_to_adversarial):
+        if path_to_adversarial.endswith(".h5"):
+            self.target_indices_seen = False
+            self.path_to_adversarial = path_to_adversarial
+
+    def get_embeddings(self, adversarial_target, modified_identity, epsilon):
+        with h5py.File(self.path_to_adversarial.format(
+                    target=adversarial_target,
+                    true=modified_identity,
+                    epsilon=epsilon
+                ), "r") as f:
+            if "target_indices" in f.keys():
+                self.target_indices_seen = True
+                return f["embeddings"][:], f["target_indices"][:]
+            elif target_indices_seen:
+                raise Exception("One file had target indices but others do not; target indices may be inconsistent.")
+
+            return f["embeddings"][:], None
+
+
 def recall_for_target(
     adversarial_target,
     identities,
@@ -203,8 +227,7 @@ def recall_for_target(
     adv = {eps: [] for eps in epsilons}
     adv_target_indices = {eps: [] for eps in epsilons}
 
-
-    target_indices_seen = False
+    ep = EmbeddingsProducer(path_to_adversarial)
 
     with h5py.File(path_to_clean.format(id=adversarial_target), "r") as f:
         query_embeddings.extend(f["embeddings"][:])
@@ -217,18 +240,15 @@ def recall_for_target(
                 with h5py.File(path_to_clean.format(id=modified_identity), "r") as f:
                     adv[epsilon].extend(f["embeddings"][:])
             else:
-                with h5py.File(path_to_adversarial.format(
-                    target=adversarial_target,
-                    true=modified_identity,
+                adv_eps, adv_ti = ep.get_embeddings(
+                    adversarial_target=adversarial_target,
+                    modified_identity=modified_identity,
                     epsilon=epsilon
-                ), "r") as f:
-                    adv[epsilon].extend(f["embeddings"][:])
-                    if "target_indices" in f.keys():
-                        target_indices_seen = True
-                        adv_target_indices[epsilon].extend(f["target_indices"][:])
+                )
+                adv[epsilon].extend(adv_eps)
+                if not (adv_ti is None):
+                    adv_target_indices[epsilon].extend(adv_ti)
 
-                    elif target_indices_seen:
-                        raise Exception("One file had target indices but others do not; target indices may be inconsistent.")
 
     recall_matrix = [[-1.0 for eps in epsilons] for k in ks]
     for kindx, k in enumerate(ks):
