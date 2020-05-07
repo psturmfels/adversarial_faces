@@ -3,6 +3,7 @@ import numpy as np
 import h5py
 from sklearn.metrics import pairwise_distances
 import os
+from PIL import Image
 
 def set_up_environment(mem_frac=None, visible_devices=None, min_log_level='3'):
     """
@@ -194,24 +195,59 @@ class EmbeddingsProducer:
     '''
     class to produce embedding given format of path to adversarial images
     '''
-    def __init__(self, path_to_adversarial):
+    def __init__(self, path_to_adversarial, model_path=None):
+        self.target_indices_seen = False
+        self.path_to_adversarial = path_to_adversarial
         if path_to_adversarial.endswith(".h5"):
-            self.target_indices_seen = False
-            self.path_to_adversarial = path_to_adversarial
+            self.raw_images = True # raw images == images from .h5 file
+        else:
+            self.raw_images = False
+            self.model = tf.keras.models.load_model(model_path)
+
+    def _compute_embeddings(self, folder):
+        total = len(os.listdir(folder))
+        ext = os.path.split(folder)[1]#assuming folder name is same as image extensions
+        imgs = [np.array(Image.open(os.path.join(folder, "{}.{}".format(i, ext)))) for i in range(total)]
+        imgs = np.array(imgs)
+        imgs = prewhiten(imgs)
+        return self.model.predict(imgs)
 
     def get_embeddings(self, adversarial_target, modified_identity, epsilon):
-        with h5py.File(self.path_to_adversarial.format(
-                    target=adversarial_target,
-                    true=modified_identity,
-                    epsilon=epsilon
-                ), "r") as f:
+        embeddings = None
+        target_indices = None
+        if self.raw_images:
+            path_to_h5 = self.path_to_adversarial.format(
+                 target=adversarial_target,
+                 true=modified_identity,
+                 epsilon=epsilon
+            )
+        else:
+            fold = self.path_to_adversarial.format(
+                 target=adversarial_target,
+                 true=modified_identity,
+                 epsilon=epsilon
+            )
+            path_to_h5 = os.path.join(os.path.split(fold)[0]) + ".h5"
+
+        with h5py.File(path_to_h5, "r") as f:
+
+            if self.raw_images:
+                embeddings = f["embeddings"][:]
+
             if "target_indices" in f.keys():
                 self.target_indices_seen = True
-                return f["embeddings"][:], f["target_indices"][:]
+                target_indices = f["target_indices"][:]
             elif target_indices_seen:
                 raise Exception("One file had target indices but others do not; target indices may be inconsistent.")
 
-            return f["embeddings"][:], None
+        if not self.raw_images:
+            embeddings = self._compute_embeddings(self.path_to_adversarial.format(
+                target=adversarial_target,
+                true=modified_identity,
+                epsilon=epsilon
+            ))
+
+        return embeddings, target_indices
 
 
 def recall_for_target(
@@ -221,13 +257,14 @@ def recall_for_target(
     path_to_adversarial,
     path_to_clean,
     ks,
-    mode="recall"
+    mode="recall",
+    model_path=None
 ):
     query_embeddings = []
     adv = {eps: [] for eps in epsilons}
     adv_target_indices = {eps: [] for eps in epsilons}
 
-    ep = EmbeddingsProducer(path_to_adversarial)
+    ep = EmbeddingsProducer(path_to_adversarial, model_path=model_path)
 
     with h5py.File(path_to_clean.format(id=adversarial_target), "r") as f:
         query_embeddings.extend(f["embeddings"][:])
@@ -268,7 +305,8 @@ def plot_recall(
     ks,
     colors,
     mode,
-    attack_name
+    attack_name,
+    model_path=None
 ):
     from matplotlib import pyplot as plt
     recall_for_targets = np.ones((len(identities), len(ks), len(epsilons))) * (-1.0)
@@ -281,7 +319,8 @@ def plot_recall(
             path_to_adversarial,
             path_to_clean,
             ks,
-            mode
+            mode,
+            model_path
         )
 
     recall_for_targets = np.mean(recall_for_targets, axis=0)
