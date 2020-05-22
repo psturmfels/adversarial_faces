@@ -63,6 +63,23 @@ def _read_embeddings(identity):
     with h5py.File(embeddings_file, 'r') as f:
         return f['embeddings'][:].astype(np.float32)
 
+def _read_adv_embeddings(identity, target):
+    """
+    Helper function to read h5 dataset files.
+    """
+    embeddings_file = os.path.join(
+            FLAGS.output_directory,
+            identity,
+            FLAGS.attack_type,
+            target
+    )
+    embeddings_file = os.path.join(FLAGS.image_directory,
+                              identity,
+                              'embeddings.h5')
+    with h5py.File(embeddings_file, 'r') as f:
+        return f['embeddings'][:].astype(np.float32)
+
+
 def _get_targets(target_arrays, num_targets):
     if FLAGS.attack_type == "community_naive_same":
         targets = target_arrays[0]
@@ -266,7 +283,14 @@ def run_attack_community():
         images_whitened = _read_identity(identity)
 
         for target_identity in tqdm(list(set(identities) - set([identity]))):
-            target_vectors = _read_embeddings(target_identity)
+            if not "iterated" in FLAGS.attack_type:
+                target_vectors = _read_embeddings(target_identity)
+            else:
+                target_vectors = _read_adv_embeddings(
+                        target_identity,
+                        np.random.choice(list(set(identities) - set([identity, target_identity])))
+                )
+
             if FLAGS.attack_type == "community_naive_same":
                 targets = [target_vectors[0] for _ in range(len(images_whitened))]
                 del target_vectors
@@ -282,6 +306,10 @@ def run_attack_community():
                 mean_target = np.mean(np.array(target_vectors), axis=0)
                 std_target = np.std(np.array(target_vectors), axis=0)
                 targets = np.random.normal(mean_target, std_target, size=(len(images_whitened), len(mean_target)))
+                del target_vectors
+            elif FLAGS.attack_type == "community_naive_random_iterated":
+                chosen_indices = np.random.choice(len(images_whitened), size=len(images_whitened), replace=True)
+                targets = target_vectors[chosen_indices]
                 del target_vectors
             else:
                 raise Exception("Attack type {} not supported".format(FLAGS.attack_type))
@@ -317,9 +345,6 @@ def run_attack_community():
             with h5py.File(data_path, 'w') as dataset_file:
                 dataset_file.create_dataset('embeddings', data=modified_embeddings)
                 dataset_file.create_dataset('images', data=modified_images)
-                if FLAGS.attack_type == "community_naive_random":
-                    dataset_file.create_dataset('target_indices', data=chosen_indices)
-
                 if FLAGS.attack_type == "community_naive_random":
                     dataset_file.create_dataset('target_indices', data=chosen_indices)
 
