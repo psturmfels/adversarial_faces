@@ -232,12 +232,19 @@ class EmbeddingsProducer:
         with h5py.File(path_to_h5, "r") as f:
 
             if self.raw_images:
-                embeddings = f["embeddings"][:]
+                try:
+                    embeddings = f["embeddings"][:]
+                except KeyError:
+                    print("No embeddings found for", end=' ')
+                    print(path_to_h5, end=' ')
+                    print([k for k in f.keys()])
+
+
 
             if "target_indices" in f.keys():
                 self.target_indices_seen = True
                 target_indices = f["target_indices"][:]
-            elif target_indices_seen:
+            elif self.target_indices_seen:
                 raise Exception("One file had target indices but others do not; target indices may be inconsistent.")
 
         if not self.raw_images:
