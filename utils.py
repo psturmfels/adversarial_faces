@@ -151,12 +151,29 @@ def discovery_given_dist(
 
     return 0.0
 
+def identropy_given_dist(
+    dist_self,
+    dist_negative,
+    k,
+    identities_negative
+):
+    self_identity = "selfXXXuniquegibberish"
+
+    all_dist = np.concatenate((dist_self, dist_negative), axis=0)
+    all_ids = np.concatenate(([self_identity for x in range(len(dist_self))], identities_negative))
+
+    sorted_indices = np.argsort(all_dist)
+    topk_ids = float(len(set(all_ids[sorted_indices][:k])))
+    total_ids = float(len(set(all_ids)))
+    return topk_ids / total_ids
+
 def recall(
     base_embeddings,
     negative_embeddings,
     k,
     mode="recall",
-    target_indices=None
+    target_indices=None,
+    neg_identities=None,
 ):
     self_distances = pairwise_distances(
         base_embeddings,
@@ -168,7 +185,13 @@ def recall(
         negative_embeddings
     )
 
-    func = recall_given_dist if mode == "recall" else discovery_given_dist if mode == "discovery" else None
+    if mode == "recall":
+        func = recall_given_dist
+    elif mode == "discovery":
+        func = discovery_given_dist
+    elif mode == "identropy":
+        func = identropy_given_dist
+
     if func is None:
         raise Exception("Unsupported mode {}".format(mode))
 
@@ -180,7 +203,6 @@ def recall(
         dist_self = np.delete(dist_self, indx)
         dist_negative = negative_distances[indx]
 
-
         if not (target_indices is None):
             # WARNING: assumption here is that target indices refer to the same indices as the
             # base embeddings we provided to this function
@@ -188,7 +210,7 @@ def recall(
             dist_negative = dist_negative[target_indices != current_indx]
 
         try:
-            r = func(dist_self, dist_negative, k)
+            r = func(dist_self, dist_negative, k) if mode != "identropy" else func(dist_self, dist_negative, k, neg_identities)
         except IndexError as e:
            continue
 
@@ -275,6 +297,7 @@ def recall_for_target(
     query_embeddings = []
     adv = {eps: [] for eps in epsilons}
     adv_target_indices = {eps: [] for eps in epsilons}
+    adv_ids = {eps: [] for eps in epsilons}
 
     ep = EmbeddingsProducer(path_to_adversarial, model_path=model_path)
 
@@ -288,6 +311,8 @@ def recall_for_target(
             if epsilon == 0.0:
                 with h5py.File(path_to_clean.format(id=modified_identity), "r") as f:
                     adv[epsilon].extend(f["embeddings"][:])
+                    if mode == "identropy":
+                        adv_ids[epsilon].extend([modified_identity for _ in range(len(f["embeddings"][:]))])
             else:
                 adv_eps, adv_ti = ep.get_embeddings(
                     adversarial_target=adversarial_target,
@@ -297,6 +322,9 @@ def recall_for_target(
                 adv[epsilon].extend(adv_eps)
                 if not (adv_ti is None):
                     adv_target_indices[epsilon].extend(adv_ti)
+
+                if mode == "identropy":
+                    adv_ids[epsilon].extend([modified_identity for _ in range(len(adv_eps))])
 
 
     recall_matrix = [[-1.0 for eps in epsilons] for k in ks]
@@ -310,7 +338,7 @@ def recall_for_target(
                     advindices = np.take(adv_target_indices[epsilon], chosen, axis=0)
             else:
                 adversarial = adv[epsilon]
-            recall_matrix[kindx][epsindx] = recall(query_embeddings, adversarial, k, mode, advindices)
+            recall_matrix[kindx][epsindx] = recall(query_embeddings, adversarial, k, mode, advindices, adv_ids[epsilon])
 
     return recall_matrix
 
