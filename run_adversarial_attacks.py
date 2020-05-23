@@ -345,7 +345,7 @@ def run_attack_community():
             with h5py.File(data_path, 'w') as dataset_file:
                 dataset_file.create_dataset('embeddings', data=modified_embeddings)
                 dataset_file.create_dataset('images', data=modified_images)
-                if FLAGS.attack_type == "community_naive_random":
+                if FLAGS.attack_type == "community_naive_random" or FLAGS.attack_type == "community_naive_random_iterated":
                     dataset_file.create_dataset('target_indices', data=chosen_indices)
 
 

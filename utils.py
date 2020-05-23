@@ -302,13 +302,12 @@ def recall_for_target(
     recall_matrix = [[-1.0 for eps in epsilons] for k in ks]
     for kindx, k in enumerate(ks):
         for epsindx, epsilon in enumerate(epsilons):
+            advindices = None
             if n_sample > 0:
                 chosen = np.int32(np.random.choice(len(adv[epsilon]), n_sample))
-                adversarial = np.take(adv[epsilon], chosen, axis=0)
-                if epsilon in adv_target_indices.keys() and epsilon != 0.0:
+                adversarial = np.take(np.array(adv[epsilon]), chosen, axis=0)
+                if epsilon in adv_target_indices.keys() and epsilon != 0.0 and len(adv_target_indices[epsilon]) > 0:
                     advindices = np.take(adv_target_indices[epsilon], chosen, axis=0)
-                else:
-                    advindices = None
             else:
                 adversarial = adv[epsilon]
             recall_matrix[kindx][epsindx] = recall(query_embeddings, adversarial, k, mode, advindices)
@@ -370,40 +369,47 @@ def plot_recall_vary_decoy(
     k,
     colors,
     mode,
-    attack_name,
+    attack_types,
     sample_sizes,
     model_path=None
 ):
     from matplotlib import pyplot as plt
-    recall_for_targets = np.ones((len(sample_sizes), len(identities))) * (-1.0)
-
-    for sample_indx, sample_n in enumerate(sample_sizes):
-        for indx, identity in enumerate(identities):
-            recall_for_targets[sample_indx, indx] = recall_for_target(
-                adversarial_target=identity,
-                identities=identities,
-                epsilons=[epsilon],
-                path_to_adversarial=path_to_adversarial,
-                path_to_clean=path_to_clean,
-                ks=[k],
-                mode=mode,
-                model_path=model_path,
-                n_sample=sample_n
-            )[0][0]
-
-    recall_for_targets = np.mean(recall_for_targets, axis=1)
 
     fig, ax = plt.subplots(nrows=1, ncols=1)
+    for atindx, attack_type in enumerate(attack_types):
+        recall_for_targets = np.ones((len(sample_sizes), len(identities))) * (-1.0)
+        for sample_indx, sample_n in enumerate(sample_sizes):
+            for indx, identity in enumerate(identities):
+                advpath = path_to_adversarial.format(
+                        attack_type=attack_type,
+                        target='{target}',
+                        true='{true}',
+                        epsilon='{epsilon}'
+                )
+                recall_for_targets[sample_indx, indx] = recall_for_target(
+                    adversarial_target=identity,
+                    identities=identities,
+                    epsilons=[epsilon],
+                    path_to_adversarial=advpath,
+                    path_to_clean=path_to_clean,
+                    ks=[k],
+                    mode=mode,
+                    model_path=model_path,
+                    n_sample=sample_n
+                )[0][0]
 
-    ax.plot(
-        sample_sizes,
-        recall_for_targets,
-        color=colors[0],
-    )
+        recall_for_targets = np.mean(recall_for_targets, axis=1)
+
+        ax.plot(
+            sample_sizes,
+            recall_for_targets,
+            color=colors[atindx],
+            label=attack_type,
+        )
 
     ax.set_ylabel("Mean {}".format(mode))
     ax.set_xlabel("Number of adversarial samples in the lookup set")
-    ax.set_title("{} from top hits {}".format(mode, attack_name))
+    ax.set_title("{} at {} with epsilon={}".format(mode, k, epsilon))
     ax.set_ylim([-0.1, 1.1])
     ax.legend()
     plt.show()
