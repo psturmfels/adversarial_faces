@@ -334,11 +334,14 @@ def recall_for_target(
             if n_sample > 0:
                 chosen = np.int32(np.random.choice(len(adv[epsilon]), n_sample))
                 adversarial = np.take(np.array(adv[epsilon]), chosen, axis=0)
+                advids = np.take(np.array(adv_ids[epsilon]), chosen)
                 if epsilon in adv_target_indices.keys() and epsilon != 0.0 and len(adv_target_indices[epsilon]) > 0:
                     advindices = np.take(adv_target_indices[epsilon], chosen, axis=0)
             else:
                 adversarial = adv[epsilon]
-            recall_matrix[kindx][epsindx] = recall(query_embeddings, adversarial, k, mode, advindices, adv_ids[epsilon])
+                advids = adv_ids[epsilon]
+
+            recall_matrix[kindx][epsindx] = recall(query_embeddings, adversarial, k, mode, advindices, advids)
 
     return recall_matrix
 
