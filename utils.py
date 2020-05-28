@@ -331,15 +331,16 @@ def recall_for_target(
     for kindx, k in enumerate(ks):
         for epsindx, epsilon in enumerate(epsilons):
             advindices = None
+            adversarial = adv[epsilon]
+            advids = adv_ids[epsilon]
+
             if n_sample > 0:
                 chosen = np.int32(np.random.choice(len(adv[epsilon]), n_sample))
                 adversarial = np.take(np.array(adv[epsilon]), chosen, axis=0)
-                advids = np.take(np.array(adv_ids[epsilon]), chosen)
+                if mode == "identropy":
+                    advids = np.take(np.array(adv_ids[epsilon]), chosen)
                 if epsilon in adv_target_indices.keys() and epsilon != 0.0 and len(adv_target_indices[epsilon]) > 0:
                     advindices = np.take(adv_target_indices[epsilon], chosen, axis=0)
-            else:
-                adversarial = adv[epsilon]
-                advids = adv_ids[epsilon]
 
             recall_matrix[kindx][epsindx] = recall(query_embeddings, adversarial, k, mode, advindices, advids)
 
@@ -402,7 +403,8 @@ def plot_recall_vary_decoy(
     mode,
     attack_types,
     sample_sizes,
-    model_path=None
+    model_path=None,
+    names=None
 ):
     from matplotlib import pyplot as plt
 
@@ -435,7 +437,7 @@ def plot_recall_vary_decoy(
             sample_sizes,
             recall_for_targets,
             color=colors[atindx],
-            label=attack_type,
+            label=attack_type if names is None else names[atindx],
         )
 
     ax.set_ylabel("Mean {}".format(mode))
