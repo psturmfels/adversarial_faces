@@ -72,24 +72,35 @@ def write_as_image_files():
             continue
         id_mean, id_std = _get_identity_mean_std(identity)
         for target_identity in tqdm(list(set(identities) - set([identity]))):
-             data_directory = os.path.join(
+            data_directory = os.path.join(
                      FLAGS.output_directory,
                      identity,
                      FLAGS.attack_type,
                      target_identity)
-             data_path = os.path.join(data_directory, 'epsilon_{}.h5'.format(FLAGS.epsilon))
-             with h5py.File(data_path, 'r') as dataset_file:
-                target_images = dataset_file["images"][:]
-             target_images  *= id_std
-             target_images += id_mean
-             target_images = np.clip(target_images, 0.0, 255.0)
-             target_images = np.uint8(target_images)
+            if FLAGS.epsilon != 0.0:
+                data_path = os.path.join(data_directory, 'epsilon_{}.h5'.format(FLAGS.epsilon))
 
-             denorm_path = os.path.join(data_directory, 'epsilon_{}'.format(FLAGS.epsilon), FLAGS.format)
-             os.makedirs(denorm_path, exist_ok=True)
-             for imindx, im in enumerate(target_images):
-                 Image.fromarray(im, mode="RGB").save(
-                         os.path.join(denorm_path, str(imindx) + "." + FLAGS.format))
+                with h5py.File(data_path, 'r') as dataset_file:
+                    target_images = dataset_file["images"][:]
+                target_images  *= id_std
+                target_images += id_mean
+                target_images = np.clip(target_images, 0.0, 255.0)
+                target_images = np.uint8(target_images)
+            else:
+                data_path= os.path.join(
+                     FLAGS.image_directory,
+                     identity,
+                     "images.h5"
+                )
+                with h5py.File(data_path, 'r') as dataset_file:
+                    target_images = dataset_file["images"][:]
+
+                target_images = np.uint8(target_images)
+            denorm_path = os.path.join(data_directory, 'epsilon_{}'.format(FLAGS.epsilon), FLAGS.format)
+            os.makedirs(denorm_path, exist_ok=True)
+            for imindx, im in enumerate(target_images):
+                Image.fromarray(im, mode="RGB").save(
+                        os.path.join(denorm_path, str(imindx) + "." + FLAGS.format))
 
 def main(argv=None):
     assert not (FLAGS.format.startswith(".")), "Specify format without a leading dot `.` character"

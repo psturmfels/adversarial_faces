@@ -357,6 +357,8 @@ def plot_recall(
     attack_name,
     model_path=None,
     sample_n=-1,
+    attack_plot_name=None,
+    save_base=None,
 ):
     from matplotlib import pyplot as plt
     recall_for_targets = np.ones((len(identities), len(ks), len(epsilons))) * (-1.0)
@@ -387,11 +389,20 @@ def plot_recall(
         )
 
     ax.set_ylabel("Mean {}".format(mode))
-    ax.set_xlabel("Epsilon (Perturbation Amount)")
-    ax.set_title("{} from top hits {}".format(mode, attack_name))
+    ax.set_xlabel("Epsilon (Perturbation Magnitude)")
+    ax.set_title("{} {}".format(
+        mode,
+        attack_name
+    ) if attack_plot_name is None else attack_plot_name)
     ax.set_ylim([-0.1, 1.1])
     ax.legend()
     plt.show()
+    if not (save_base is None):
+        fig_dir = os.path.join(
+                save_base,
+                "{}_{}.png".format(mode, attack_name)
+        )
+        plt.savefig(fig_dir)
 
 def plot_recall_vary_decoy(
     identities,
