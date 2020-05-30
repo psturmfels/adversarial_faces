@@ -299,8 +299,10 @@ def run_attack_community():
                 targets = target_vectors[chosen_indices]
                 del target_vectors
             elif FLAGS.attack_type == "community_naive_mean":
-                mean_target = np.mean(np.array(target_vectors), axis=0)
-                targets = [mean_target for _ in range(len(images_whitened))]
+                target_vectors = np.array(target_vectors)
+                def mean_target(indx):
+                    return np.mean(np.delete(target_vectors, indx, axis=0), axis=0)
+                targets = [mean_target(i) for i in range(len(images_whitened))]
                 del target_vectors
             elif FLAGS.attack_type == "community_sample_gaussian_model":
                 mean_target = np.mean(np.array(target_vectors), axis=0)
