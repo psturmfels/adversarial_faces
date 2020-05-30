@@ -167,6 +167,21 @@ def identropy_given_dist(
     total_ids = float(len(set(all_ids)))
     return topk_ids / total_ids
 
+def numids_given_dist(
+    dist_self,
+    dist_negative,
+    k,
+    identities_negative
+):
+    self_identity = "selfXXXuniquegibberish"
+
+    all_dist = np.concatenate((dist_self, dist_negative), axis=0)
+    all_ids = np.concatenate(([self_identity for x in range(len(dist_self))], identities_negative))
+
+    sorted_indices = np.argsort(all_dist)
+    topk_ids = float(len(set(all_ids[sorted_indices][:k])))
+    return topk_ids
+
 def recall(
     base_embeddings,
     negative_embeddings,
@@ -191,6 +206,8 @@ def recall(
         func = discovery_given_dist
     elif mode == "identropy":
         func = identropy_given_dist
+    elif mode == "numids":
+        func = numids_given_dist
 
     if func is None:
         raise Exception("Unsupported mode {}".format(mode))
@@ -210,7 +227,7 @@ def recall(
             dist_negative = dist_negative[target_indices != current_indx]
 
         try:
-            r = func(dist_self, dist_negative, k) if mode != "identropy" else func(dist_self, dist_negative, k, neg_identities)
+            r = func(dist_self, dist_negative, k) if mode != "identropy" and mode != "numids" else func(dist_self, dist_negative, k, neg_identities)
         except IndexError as e:
            continue
 
@@ -311,7 +328,7 @@ def recall_for_target(
             if epsilon == 0.0:
                 with h5py.File(path_to_clean.format(id=modified_identity), "r") as f:
                     adv[epsilon].extend(f["embeddings"][:])
-                    if mode == "identropy":
+                    if mode == "identropy" or mode == "numids":
                         adv_ids[epsilon].extend([modified_identity for _ in range(len(f["embeddings"][:]))])
             else:
                 adv_eps, adv_ti = ep.get_embeddings(
@@ -323,7 +340,7 @@ def recall_for_target(
                 if not (adv_ti is None):
                     adv_target_indices[epsilon].extend(adv_ti)
 
-                if mode == "identropy":
+                if mode == "identropy" or mode == "numids":
                     adv_ids[epsilon].extend([modified_identity for _ in range(len(adv_eps))])
 
 
@@ -337,7 +354,7 @@ def recall_for_target(
             if n_sample > 0:
                 chosen = np.int32(np.random.choice(len(adv[epsilon]), n_sample))
                 adversarial = np.take(np.array(adv[epsilon]), chosen, axis=0)
-                if mode == "identropy":
+                if mode == "identropy" or mode == "numids":
                     advids = np.take(np.array(adv_ids[epsilon]), chosen)
                 if epsilon in adv_target_indices.keys() and epsilon != 0.0 and len(adv_target_indices[epsilon]) > 0:
                     advindices = np.take(adv_target_indices[epsilon], chosen, axis=0)
@@ -396,13 +413,15 @@ def plot_recall(
     ) if attack_plot_name is None else attack_plot_name)
     ax.set_ylim([-0.1, 1.1])
     ax.legend()
-    plt.show()
     if not (save_base is None):
         fig_dir = os.path.join(
                 save_base,
                 "{}_{}.png".format(mode, attack_name)
         )
-        plt.savefig(fig_dir)
+        fig = plt.gcf()
+        fig.savefig(fig_dir)
+    else:
+        plt.show()
 
 def plot_recall_vary_decoy(
     identities,
@@ -414,8 +433,9 @@ def plot_recall_vary_decoy(
     mode,
     attack_types,
     sample_sizes,
+    clean_lookup_size,
     model_path=None,
-    names=None
+    names=None,
 ):
     from matplotlib import pyplot as plt
 
@@ -445,16 +465,16 @@ def plot_recall_vary_decoy(
         recall_for_targets = np.mean(recall_for_targets, axis=1)
 
         ax.plot(
-            sample_sizes,
+            [float(x) / float(clean_lookup_size) for x in sample_sizes],
             recall_for_targets,
             color=colors[atindx],
             label=attack_type if names is None else names[atindx],
         )
 
     ax.set_ylabel("Mean {}".format(mode))
-    ax.set_xlabel("Number of adversarial samples in the lookup set")
+    ax.set_xlabel("Proportion of decoys relative to clean lookup")
     ax.set_title("{} at {} with epsilon={}".format(mode, k, epsilon))
-    ax.set_ylim([-0.1, 1.1])
+    ax.set_ylim([-0.1, np.max(recall_for_targets) + 0.1])
     ax.legend()
     plt.show()
 
