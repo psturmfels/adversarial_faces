@@ -171,7 +171,8 @@ def numids_given_dist(
     dist_self,
     dist_negative,
     k,
-    identities_negative
+    identities_negative,
+    total_ids
 ):
     self_identity = "selfXXXuniquegibberish"
 
@@ -183,7 +184,7 @@ def numids_given_dist(
     #return np.log2(1.0 / topk_ids + 1.0)
     #return np.power(2.0, 1.0 / topk_ids)
     #return topk_ids
-    total_ids = float(len(set(all_ids)))
+    #total_ids = float(len(set(all_ids)))
 
     return (total_ids - topk_ids) / total_ids
 
@@ -194,6 +195,7 @@ def recall(
     mode="recall",
     target_indices=None,
     neg_identities=None,
+    total_ids=0
 ):
     self_distances = pairwise_distances(
         base_embeddings,
@@ -205,14 +207,6 @@ def recall(
         negative_embeddings
     )
 
-    if mode == "recall":
-        func = recall_given_dist
-    elif mode == "discovery":
-        func = discovery_given_dist
-    elif mode == "identropy":
-        func = identropy_given_dist
-    elif mode == "numids":
-        func = numids_given_dist
 
     if func is None:
         raise Exception("Unsupported mode {}".format(mode))
@@ -232,7 +226,18 @@ def recall(
             dist_negative = dist_negative[target_indices != current_indx]
 
         try:
-            r = func(dist_self, dist_negative, k) if mode != "identropy" and mode != "numids" else func(dist_self, dist_negative, k, neg_identities)
+            if mode == "identropy":
+                r = identropy_given_dist(dist_self, dist_negative, k, neg_identities)
+            elif mode == "numids":
+                assert total_ids > 0
+                r = numids_given_dist(dist_self, dist_negative, k, neg_identities, total_ids)
+            else:
+                if mode == "recall":
+                    func = recall_given_dist
+                elif mode == "discovery":
+                    func = discovery_given_dist
+                r = func(dist_self, dist_negative, k)
+
         except IndexError as e:
            continue
 
@@ -355,6 +360,7 @@ def recall_for_target(
             advindices = None
             adversarial = adv[epsilon]
             advids = adv_ids[epsilon]
+            num_total_ids = len(set(advids))
 
             if n_sample > 0:
                 chosen = np.int32(np.random.choice(len(adv[epsilon]), n_sample))
@@ -364,7 +370,7 @@ def recall_for_target(
                 if epsilon in adv_target_indices.keys() and epsilon != 0.0 and len(adv_target_indices[epsilon]) > 0:
                     advindices = np.take(adv_target_indices[epsilon], chosen, axis=0)
 
-            recall_matrix[kindx][epsindx] = recall(query_embeddings, adversarial, k, mode, advindices, advids)
+            recall_matrix[kindx][epsindx] = recall(query_embeddings, adversarial, k, mode, advindices, advids, num_total_ids)
 
     return recall_matrix
 
