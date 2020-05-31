@@ -180,7 +180,12 @@ def numids_given_dist(
 
     sorted_indices = np.argsort(all_dist)
     topk_ids = float(len(set(all_ids[sorted_indices][:k])))
-    return topk_ids
+    #return np.log2(1.0 / topk_ids + 1.0)
+    #return np.power(2.0, 1.0 / topk_ids)
+    #return topk_ids
+    total_ids = float(len(set(all_ids)))
+
+    return (total_ids - topk_ids) / total_ids
 
 def recall(
     base_embeddings,
@@ -372,6 +377,7 @@ def plot_recall(
     colors,
     mode,
     attack_name,
+    metric_name,
     model_path=None,
     sample_n=-1,
     attack_plot_name=None,
@@ -405,13 +411,13 @@ def plot_recall(
             color=colors[indx],
         )
 
-    ax.set_ylabel("Mean {}".format(mode))
+    ax.set_ylabel("Mean {}".format(metric_name))
     ax.set_xlabel("Epsilon (Perturbation Magnitude)")
     ax.set_title("{} {}".format(
         mode,
         attack_name
     ) if attack_plot_name is None else attack_plot_name)
-    ax.set_ylim([-0.1, 1.1])
+    ax.set_ylim([-0.1, np.max(recall_for_targets) + 0.1])
     ax.legend()
     if not (save_base is None):
         fig_dir = os.path.join(
@@ -431,9 +437,11 @@ def plot_recall_vary_decoy(
     k,
     colors,
     mode,
+    metric_name,
     attack_types,
     sample_sizes,
     clean_lookup_size,
+    save_base,
     model_path=None,
     names=None,
 ):
@@ -471,12 +479,27 @@ def plot_recall_vary_decoy(
             label=attack_type if names is None else names[atindx],
         )
 
-    ax.set_ylabel("Mean {}".format(mode))
+    #ax.set_ylabel("Mean {}".format(mode))
+    #ax.set_xlabel("Proportion of decoys relative to clean lookup")
+    #ax.set_title("{} at {} with epsilon={}".format(mode, k, epsilon))
+    #ax.set_ylim([-0.1, np.max(recall_for_targets) + 0.1])
+    #ax.legend()
+    #plt.show()
+    ax.set_ylabel("Mean {}".format(metric_name))
     ax.set_xlabel("Proportion of decoys relative to clean lookup")
-    ax.set_title("{} at {} with epsilon={}".format(mode, k, epsilon))
-    ax.set_ylim([-0.1, np.max(recall_for_targets) + 0.1])
+    ax.set_title("{} vs decoys\n for epsilon={} and k = {}".format(metric_name, epsilon, k))
+    ax.set_ylim([-0.1, 1.0 + 0.1])
     ax.legend()
-    plt.show()
+    if not (save_base is None):
+        fig_dir = os.path.join(
+                save_base,
+                "{}_vs_decoy_set_size_{}_{}.png".format(mode, epsilon, k)
+        )
+        fig = plt.gcf()
+        fig.savefig(fig_dir)
+    else:
+        plt.show()
+
 
 def plot_topk(
     identities,
