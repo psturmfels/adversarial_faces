@@ -20,10 +20,10 @@ VGG_BASE = '/data/vggface'
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string('image_directory',
-                    os.path.join(VGG_BASE, 'test_preprocessed_sampled'),
+                    os.path.join(VGG_BASE, 'test_preprocessed'),
                     'Top level directory for images')
 flags.DEFINE_string('output_directory',
-                    os.path.join(VGG_BASE, 'test_perturbed_sampled'),
+                    os.path.join(VGG_BASE, 'test_perturbed'),
                     'Top level directory to output adversarially-modified images')
 flags.DEFINE_string('visible_devices',
                     '0',
@@ -40,6 +40,10 @@ flags.DEFINE_float('epsilon',
 flags.DEFINE_integer('batch_size',
                      128,
                      'Batch size to use for gradient-based adversarial attacks')
+flags.DEFINE_integer('max_decoys',
+                     100,
+                     'The max number of images to modify to serve as decoys')
+
 
 def _read_identity(identity):
     """
@@ -281,6 +285,8 @@ def run_attack_community():
                                                                      identity_index,
                                                                      len(identities)))
         images_whitened = _read_identity(identity)
+        if len(images_whitened) > FLAGS.max_decoys:
+            images_whitened = images_whitened[:FLAGS.max_decoys]
 
         for target_identity in tqdm(list(set(identities) - set([identity]))):
             if not "iterated" in FLAGS.attack_type:
@@ -347,6 +353,7 @@ def run_attack_community():
             with h5py.File(data_path, 'w') as dataset_file:
                 dataset_file.create_dataset('embeddings', data=modified_embeddings)
                 dataset_file.create_dataset('images', data=modified_images)
+                dataset_file.create_dataset('targets', data=targets)
                 if FLAGS.attack_type == "community_naive_random" or FLAGS.attack_type == "community_naive_random_iterated":
                     dataset_file.create_dataset('target_indices', data=chosen_indices)
 
