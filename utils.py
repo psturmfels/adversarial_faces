@@ -208,9 +208,6 @@ def recall(
     )
 
 
-    if func is None:
-        raise Exception("Unsupported mode {}".format(mode))
-
     recall = []
     if not (target_indices is None):
         target_indices = np.int32(np.array(target_indices))
@@ -236,6 +233,8 @@ def recall(
                     func = recall_given_dist
                 elif mode == "discovery":
                     func = discovery_given_dist
+                else:
+                    raise Exception("Unsupported mode {}".format(mode))
                 r = func(dist_self, dist_negative, k)
 
         except IndexError as e:
@@ -298,7 +297,11 @@ class EmbeddingsProducer:
                 self.target_indices_seen = True
                 target_indices = f["target_indices"][:]
             elif self.target_indices_seen:
-                raise Exception("One file had target indices but others do not; target indices may be inconsistent.")
+                raise Exception("One file had target indices but others do not; target indices may be inconsistent. adv_target={} mod_id={} eps={}".format(
+                        adversarial_target,
+                        modified_identity,
+                        epsilon
+                    ))
 
         if not self.raw_images:
             embeddings = self._compute_embeddings(self.path_to_adversarial.format(
@@ -341,11 +344,22 @@ def recall_for_target(
                     if mode == "identropy" or mode == "numids":
                         adv_ids[epsilon].extend([modified_identity for _ in range(len(f["embeddings"][:]))])
             else:
-                adv_eps, adv_ti = ep.get_embeddings(
-                    adversarial_target=adversarial_target,
-                    modified_identity=modified_identity,
-                    epsilon=epsilon
-                )
+                try:
+                    adv_eps, adv_ti = ep.get_embeddings(
+                        adversarial_target=adversarial_target,
+                        modified_identity=modified_identity,
+                        epsilon=epsilon
+                    )
+                except TypeError as e:
+                    print(e)
+                    print(mode, epsilon, adversarial_target, modified_identity)
+
+                if adv_eps is None:
+                    print("Returned None from get_embeddings when epsilon={}, the adversarial target is {} and the mod id is {}".format(
+                        epsilon, adversarial_target, modified_identity
+                    ))
+                    continue
+
                 adv[epsilon].extend(adv_eps)
                 if not (adv_ti is None):
                     adv_target_indices[epsilon].extend(adv_ti)
