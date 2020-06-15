@@ -301,7 +301,7 @@ def run_attack_community():
                 targets = [target_vectors[0] for _ in range(len(images_whitened))]
                 del target_vectors
             elif FLAGS.attack_type == "community_naive_random":
-                chosen_indices = np.random.choice(len(images_whitened), size=len(images_whitened), replace=True)
+                chosen_indices = np.random.choice(len(images_whitened) - 1, size=len(images_whitened), replace=True)
                 targets = target_vectors[chosen_indices]
                 del target_vectors
             elif FLAGS.attack_type == "community_naive_mean":
