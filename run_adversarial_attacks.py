@@ -103,7 +103,7 @@ class TargetsGenerator:
                     self.num_protected_embeddings,
                     size=num_targets,
                     replace=True)
-            return self.protected_embeddings[choice_indices]
+            return self.protected_embeddings[self.choice_indices]
 
         elif FLAGS.attack_type == "community_naive_mean":
             return np.tile(self.mean_protected_embeddings, (num_targets, 1))
@@ -327,7 +327,7 @@ def run_attack_community():
         decoy_indices = []
         decoy_orig_id = []
 
-        for decoy_identity in list(set(identities) - set([identity])):
+        for decoy_identity in tqdm(list(set(identities) - set([identity]))):
             images_to_modify.extend(_read_identity(decoy_identity)[:FLAGS.num_decoys])
             modification_targets.extend(tg.get_targets(FLAGS.num_decoys))
             orig_id.extend(np.tile(decoy_identity, FLAGS.num_decoys))
