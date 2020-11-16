@@ -28,7 +28,7 @@ def flags():
     )
     parser.add_argument(
         '--attack_strategy',
-        default='community_naive_random',
+        default='community_naive_mean',
         help='The attack strategy to use',
         type=str
     )
@@ -106,12 +106,12 @@ class PersonGroupInterface:
             # Sleep to avoid triggering rate limiters
             time.sleep(1)
 
-    def add_images_for_person(self, image_directory, person_name, num_clean, num_decoys, epsilon):
+    def add_images_for_person(
+            self, image_directory, attack_strategy, person_name, num_clean, num_decoys, epsilon):
         # Get all the protected identities.
         # Remember our folder structure is ground_truth_identity/attack_strategy/protected_identity/epsilon_X/png/*.png
-        import pdb; pdb.set_trace()
         protected_folders = glob.glob(
-            os.path.join(image_directory, person_name, "*"))
+            os.path.join(image_directory, person_name, attack_strategy, "*"))
 
         # 1. Add clean images truly belonging to this identity
         # When epsilon = 0.0, we have clean images and it doesn't matter which identity is "being protected"
@@ -124,6 +124,23 @@ class PersonGroupInterface:
             full_folder_path = os.path.join(
                 protected_identity_folder, f"epsilon_{epsilon}", "png")
             self._add_folder(full_folder_path, person_name, num_decoys)
+
+
+        def train(self):
+            print()
+            print('Training the person group...')
+            # Train the person group
+            self.face_client.person_group.train(self.person_group_name)
+
+            while (True):
+                training_status = self.face_client.person_group.get_training_status(self.person_group_name)
+                print("Training status: {}.".format(training_status.status))
+                print()
+                if (training_status.status is TrainingStatusType.succeeded):
+                    break
+                elif (training_status.status is TrainingStatusType.failed):
+                    sys.exit('Training the person group has failed.')
+                time.sleep(5)
 
 
 def main(argv=None):
@@ -145,12 +162,14 @@ def main(argv=None):
     for identity in identities:
         pgi.add_images_for_person(
             FLAGS.image_directory,
+            FLAGS.attack_strategy,
             identity,
             FLAGS.num_clean,
             FLAGS.num_decoys,
             FLAGS.epsilon
         )
 
+    pgi.train()
 
 if __name__ == '__main__':
     main()
