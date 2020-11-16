@@ -126,21 +126,21 @@ class PersonGroupInterface:
             self._add_folder(full_folder_path, person_name, num_decoys)
 
 
-        def train(self):
-            print()
-            print('Training the person group...')
-            # Train the person group
-            self.face_client.person_group.train(self.person_group_name)
+    def train(self):
+        print()
+        print('Training the person group...')
+        # Train the person group
+        self.face_client.person_group.train(self.person_group_name)
 
-            while (True):
-                training_status = self.face_client.person_group.get_training_status(self.person_group_name)
-                print("Training status: {}.".format(training_status.status))
-                print()
-                if (training_status.status is TrainingStatusType.succeeded):
-                    break
-                elif (training_status.status is TrainingStatusType.failed):
-                    sys.exit('Training the person group has failed.')
-                time.sleep(5)
+        while (True):
+            training_status = self.face_client.person_group.get_training_status(self.person_group_name)
+            print("Training status: {}.".format(training_status.status))
+            print()
+            if (training_status.status is TrainingStatusType.succeeded):
+                break
+            elif (training_status.status is TrainingStatusType.failed):
+                sys.exit('Training the person group has failed.')
+            time.sleep(5)
 
 
 def main(argv=None):
