@@ -8,6 +8,7 @@ from PIL import Image, ImageDraw
 from azure.cognitiveservices.vision.face import FaceClient
 from msrest.authentication import CognitiveServicesCredentials
 from azure.cognitiveservices.vision.face.models import TrainingStatusType, Person
+from azure.cognitiveservices.vision.face.models import APIErrorException
 from tqdm import tqdm
 
 
@@ -95,16 +96,18 @@ class PersonGroupInterface:
         file_paths = sorted(file_paths[:limit])
 
         print(f"Adding folder {folder_path}")
-
         # Add to Azure instance
         for img_path in tqdm(file_paths):
-            self.face_client.person_group_person.add_face_from_stream(
-                self.person_group_name,
-                self.name_to_person_obj[person_name].person_id,
-                open(img_path, "r+b")
-            )
+            try:
+                self.face_client.person_group_person.add_face_from_stream(
+                    self.person_group_name,
+                    self.name_to_person_obj[person_name].person_id,
+                    open(img_path, "r+b")
+                )
+            except APIErrorException as e:
+                print(f"Exception {e} for image {img_path}")
             # Sleep to avoid triggering rate limiters
-            time.sleep(1)
+            time.sleep(10)
 
     def add_images_for_person(
             self, image_directory, attack_strategy, person_name, num_clean, num_decoys, epsilon):
