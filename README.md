@@ -24,3 +24,6 @@ A repository for exploring how adversarial machine learning can provide privacy 
     the clean embeddings of identity A. So if identity B's image at index `n` was modified to match the embedding of identity A's image at index `m`, the dataset at `output_directory/B/community_naive_random/A/epsilon_XX.h5` should contain a `target_indices` array where the `n`-th element is `m`.  
 * `community_sample_gaussian_model`: modify all images not belonging to identity A so that they embed to a vector randomly sampled from a Gaussian with mean and standard deviation matching the vectors of A
 
+# Azure Face API
+
+In general, we are following the instructions [here](https://docs.microsoft.com/en-us/azure/cognitive-services/Face/Quickstarts/client-libraries?pivots=programming-language-python&tabs=visual-studio).

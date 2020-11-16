@@ -185,3 +185,5 @@ dmypy.json
 .pyre/
 results/
 models/
+
+azure_auth.json
