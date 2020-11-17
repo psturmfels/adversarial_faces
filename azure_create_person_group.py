@@ -113,8 +113,12 @@ class PersonGroupInterface:
             self, image_directory, attack_strategy, person_name, num_clean, num_decoys, epsilon):
         # Get all the protected identities.
         # Remember our folder structure is ground_truth_identity/attack_strategy/protected_identity/epsilon_X/png/*.png
-        protected_folders = glob.glob(
-            os.path.join(image_directory, person_name, attack_strategy, "*"))
+        folders_wildcard = os.path.join(image_directory, person_name, attack_strategy, "*")
+        protected_folders = glob.glob(folders_wildcard)
+
+        if len(protected_folders) < 1:
+            print(f"For folder {folders_wildcard} no protected folders")
+            return
 
         # 1. Add clean images truly belonging to this identity
         # When epsilon = 0.0, we have clean images and it doesn't matter which identity is "being protected"
@@ -159,7 +163,7 @@ def main(argv=None):
     pgi = PersonGroupInterface(
         person_group_name, auth_data["endpoint"], auth_data["key"])
 
-    identities = os.listdir(FLAGS.image_directory)
+    identities = [x for x in os.listdir(FLAGS.image_directory) if not x.startswith(".")]
     pgi.create_person_for_each_identity(identities)
 
     for identity in identities:
