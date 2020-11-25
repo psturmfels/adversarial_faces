@@ -40,6 +40,10 @@ flags.DEFINE_float('epsilon',
 flags.DEFINE_integer('batch_size',
                      128,
                      'Batch size to use for gradient-based adversarial attacks')
+flags.DEFINE_string('identities_to_process',
+                    '',
+                    'Path to txt file specifying which identities to work with')
+
 
 def _read_identity(identity):
     """
@@ -279,7 +283,15 @@ def run_attack_community():
     else:
         attacker = PGDAttacker(model)
 
-    identities = os.listdir(FLAGS.image_directory)
+
+    if FLAGS.identities_to_process != "" and os.path.isfile(FLAGS.identities_to_process):
+        identities = []
+        with open(FLAGS.identities_to_process, "r") as f:
+            for line in f:
+                identities.append(line.strip(" ").strip("\n"))
+    else:
+        identities = os.listdir(FLAGS.image_directory)
+    print(f"Processing identities:{' '.join(identities)}")
 
     for identity_index, identity in enumerate(identities):
         print('========Running on identity {}, {}/{}========'.format(identity,
