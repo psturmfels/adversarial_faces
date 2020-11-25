@@ -10,7 +10,7 @@ from skimage.util import img_as_ubyte
 from sklearn.metrics import pairwise_distances
 
 from utils import set_up_environment, prewhiten, l2_normalize
-from attacks.pgd import PGDAttacker
+from attacks.pgd import PGDAttacker, RobustPGDAttacker
 
 from absl import app, flags
 
@@ -20,10 +20,10 @@ VGG_BASE = '/data/vggface'
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string('image_directory',
-                    os.path.join(VGG_BASE, 'test_preprocessed'),
+                    os.path.join(VGG_BASE, 'test_preprocessed_sampled'),
                     'Top level directory for images')
 flags.DEFINE_string('output_directory',
-                    os.path.join(VGG_BASE, 'test_perturbed'),
+                    os.path.join(VGG_BASE, 'test_perturbed_sampled'),
                     'Top level directory to output adversarially-modified images')
 flags.DEFINE_string('visible_devices',
                     '0',
@@ -94,21 +94,21 @@ class TargetsGenerator:
         self.choice_indices = []
 
     def get_targets(self, num_targets):
-        if FLAGS.attack_type == "community_naive_same":
+        if FLAGS.attack_type.endswith("community_naive_same"):
             self.choice_indices = np.tile(0, num_targets)
             return np.tile(self.protected_embeddings[0], (num_targets, 1))
 
-        elif FLAGS.attack_type == "community_naive_random":
+        elif FLAGS.attack_type.endswith("community_naive_random"):
             self.choice_indices = np.random.choice(
                     self.num_protected_embeddings,
                     size=num_targets,
                     replace=True)
             return self.protected_embeddings[self.choice_indices]
 
-        elif FLAGS.attack_type == "community_naive_mean":
+        elif FLAGS.attack_type.endswith("community_naive_mean"):
             return np.tile(self.mean_protected_embeddings, (num_targets, 1))
 
-        elif FLAGS.attack_type == "community_sample_gaussian_model":
+        elif FLAGS.attack_type.endswith("community_sample_gaussian_model"):
             return np.random.normal(
                     self.mean_protected_embeddings,
                     self.std_protected_embeddings,
@@ -197,7 +197,12 @@ def _attack_images(attacker,
 def run_attack():
     set_up_environment(visible_devices=FLAGS.visible_devices)
     model = tf.keras.models.load_model(FLAGS.model_path)
-    attacker = PGDAttacker(model)
+
+    if FLAGS.attack_type.startswith("robust_"):
+        attacker = RobustPGDAttacker(model)
+    else:
+        attacker = PGDAttacker(model)
+
     identities = os.listdir(FLAGS.image_directory)
 
     previous_images_whitened = _read_identity(identities[1])
