@@ -10,7 +10,7 @@ from skimage.util import img_as_ubyte
 from sklearn.metrics import pairwise_distances
 
 from utils import set_up_environment, prewhiten, l2_normalize
-from attacks.pgd import PGDAttacker
+from attacks.pgd import PGDAttacker, RobustPGDAttacker
 
 from absl import app, flags
 
@@ -273,7 +273,12 @@ def run_attack_community_global():
 def run_attack_community():
     set_up_environment(visible_devices=FLAGS.visible_devices)
     model = tf.keras.models.load_model(FLAGS.model_path)
-    attacker = PGDAttacker(model)
+
+    if FLAGS.attack_type.startswith("robust_"):
+        attacker = RobustPGDAttacker(model)
+    else:
+        attacker = PGDAttacker(model)
+
     identities = os.listdir(FLAGS.image_directory)
 
     for identity_index, identity in enumerate(identities):
@@ -291,25 +296,25 @@ def run_attack_community():
                         np.random.choice(list(set(identities) - set([identity, target_identity])))
                 )
 
-            if FLAGS.attack_type == "community_naive_same":
+            if FLAGS.attack_type.endswith("community_naive_same"):
                 targets = [target_vectors[0] for _ in range(len(images_whitened))]
                 del target_vectors
-            elif FLAGS.attack_type == "community_naive_random":
+            elif FLAGS.attack_type.endswith("community_naive_random"):
                 chosen_indices = np.random.choice(len(images_whitened), size=len(images_whitened), replace=True)
                 targets = target_vectors[chosen_indices]
                 del target_vectors
-            elif FLAGS.attack_type == "community_naive_mean":
+            elif FLAGS.attack_type.endswith("community_naive_mean"):
                 target_vectors = np.array(target_vectors)
                 def mean_target(indx):
                     return np.mean(np.delete(target_vectors, indx, axis=0), axis=0)
                 targets = [mean_target(i) for i in range(len(images_whitened))]
                 del target_vectors
-            elif FLAGS.attack_type == "community_sample_gaussian_model":
+            elif FLAGS.attack_type.endswith("community_sample_gaussian_model"):
                 mean_target = np.mean(np.array(target_vectors), axis=0)
                 std_target = np.std(np.array(target_vectors), axis=0)
                 targets = np.random.normal(mean_target, std_target, size=(len(images_whitened), len(mean_target)))
                 del target_vectors
-            elif FLAGS.attack_type == "community_naive_random_iterated":
+            elif FLAGS.attack_type.endswith("community_naive_random_iterated"):
                 chosen_indices = np.random.choice(len(images_whitened), size=len(images_whitened), replace=True)
                 targets = target_vectors[chosen_indices]
                 del target_vectors
