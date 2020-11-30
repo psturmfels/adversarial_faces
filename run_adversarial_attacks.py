@@ -283,6 +283,7 @@ def run_attack_community():
     else:
         attacker = PGDAttacker(model)
 
+    all_identities = os.listdir(FLAGS.image_directory)
 
     if FLAGS.identities_to_process != "" and os.path.isfile(FLAGS.identities_to_process):
         identities = []
@@ -290,7 +291,8 @@ def run_attack_community():
             for line in f:
                 identities.append(line.strip(" ").strip("\n"))
     else:
-        identities = os.listdir(FLAGS.image_directory)
+        identities = all_identities
+
     print(f"Processing identities:{' '.join(identities)}")
 
     for identity_index, identity in enumerate(identities):
@@ -299,7 +301,7 @@ def run_attack_community():
                                                                      len(identities)))
         images_whitened = _read_identity(identity)
 
-        for target_identity in tqdm(list(set(identities) - set([identity]))):
+        for target_identity in tqdm(list(set(all_identities) - set([identity]))):
             if not "iterated" in FLAGS.attack_type:
                 target_vectors = _read_embeddings(target_identity)
             else:
