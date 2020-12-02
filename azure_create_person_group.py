@@ -64,29 +64,48 @@ class PersonGroupInterface:
         self.face_client = FaceClient(
             endpoint, CognitiveServicesCredentials(key))
 
-        self.log_file_dict = self._find_logfile(person_group_name)
+        self.log_dict = self._load_logfile(person_group_name)
 
         self.person_group_name = person_group_name
-        self._verify_person_group_does_not_exist(person_group_name)
+
+        if self._does_person_group_exist(person_group_name):
+            if len(self.log_dict) == 0:
+                raise PersonGroupExistsError(f"Person group {person_group_name} exists but log dict is empty")
+        else:
+            if len(self.log_dict) > 0:
+                raise PersonGroupExistsError(f"Person group {person_group_name} does not exist but log dict is there")
+
         self.name_to_person_obj = {}
         self.face_client.person_group.create(
             person_group_id=self.person_group_name,
             name=self.person_group_name
         )
 
-    def _find_logfile(self, person_group_name):
-        log_file_path = os.path.join("azure_face_logfiles", f"{person_group_name}.txt")
-        if os.path.isfile(log_file_path):
-            open(log_file_path, "r"
+    def _load_logfile(self, person_group_name):
+        self.log_file_path = os.path.join("azure_face_logfiles", f"{person_group_name}.txt")
+        log_dict = {}
+        if os.path.isfile(self.log_file_path):
+            with open(self.log_file_path, "r") as f:
+                curr_id = None
+                for line in f:
+                    line = line.strip("\n")
+                    if line.startswith("n"):
+                        curr_id = line
+                        if not (curr_id in log_dict):
+                            log_dict[curr_id] = set()
+                    elif curr_id:
+                        log_dict[curr_id] = line
+                    else:
+                        raise Exception(f"Orphan line {line} with no identifier")
+        return log_dict
 
-    def _verify_person_group_does_not_exist(self, person_group_name):
+    def _does_person_group_exist(self, person_group_name):
         # Check if person group exists on Azure instance
         existing_pg = self.face_client.person_group.list()
         for gr in existing_pg:
             if gr.name == person_group_name or gr.person_group_id == person_group_name:
-                raise PersonGroupExistsError(
-                    f"Group {person_group_name} already exists; please delete or fix accordingly"
-                )
+                return True
+        return False
 
     def create_person_for_each_identity(self, identities):
         for person_name in identities:
@@ -118,17 +137,20 @@ class PersonGroupInterface:
 
         print(f"Adding folder {folder_path}")
         # Add to Azure instance
-        for img_path in tqdm(file_paths):
-            try:
-                self.face_client.person_group_person.add_face_from_stream(
-                    self.person_group_name,
-                    self.name_to_person_obj[person_name].person_id,
-                    open(img_path, "r+b")
-                )
-            except APIErrorException as e:
-                print(f"Exception {e} for image {img_path}")
-            # Sleep to avoid triggering rate limiters
-            time.sleep(10)
+
+        with open(self.log_file_path, "a") as f:
+            for img_path in tqdm(file_paths):
+                try:
+                    self.face_client.person_group_person.add_face_from_stream(
+                        self.person_group_name,
+                        self.name_to_person_obj[person_name].person_id,
+                        open(img_path, "r+b")
+                    )
+                    f.write(f"{img_path}\n")
+                except APIErrorException as e:
+                    print(f"Exception {e} for image {img_path}")
+                # Sleep to avoid triggering rate limiters
+                time.sleep(10)
 
     def add_images_for_person(
             self, image_directory, attack_strategy, person_name, num_clean, num_decoys, epsilon):
@@ -140,6 +162,9 @@ class PersonGroupInterface:
         if len(protected_folders) < 1:
             print(f"For folder {folders_wildcard} no protected folders")
             return
+
+        with open(self.log_file_path, "a") as f:
+            f.write(f"{person_name}\n")
 
         # 1. Add clean images truly belonging to this identity
         # When epsilon = 0.0, we have clean images and it doesn't matter which identity is "being protected"
