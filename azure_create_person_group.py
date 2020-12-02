@@ -97,6 +97,10 @@ class PersonGroupInterface:
             os.path.join(folder_path, '*')
         ) if fn.endswith("png") or fn.endswith("jpg") or fn.endswith("jpeg")]
 
+        if len(file_paths) < 1:
+            print(f"No files found at {folder_path}")
+            return
+
         # Restrict to the first limit instances only in alphabetical order
         file_paths = np.take(sorted(file_paths), indices)
 
