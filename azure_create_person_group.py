@@ -63,6 +63,9 @@ class PersonGroupInterface:
     def __init__(self, person_group_name, endpoint, key):
         self.face_client = FaceClient(
             endpoint, CognitiveServicesCredentials(key))
+
+        self.log_file_dict = self._find_logfile(person_group_name)
+
         self.person_group_name = person_group_name
         self._verify_person_group_does_not_exist(person_group_name)
         self.name_to_person_obj = {}
@@ -70,6 +73,11 @@ class PersonGroupInterface:
             person_group_id=self.person_group_name,
             name=self.person_group_name
         )
+
+    def _find_logfile(self, person_group_name):
+        log_file_path = os.path.join("azure_face_logfiles", f"{person_group_name}.txt")
+        if os.path.isfile(log_file_path):
+            open(log_file_path, "r"
 
     def _verify_person_group_does_not_exist(self, person_group_name):
         # Check if person group exists on Azure instance
@@ -102,6 +110,10 @@ class PersonGroupInterface:
             return
 
         # Restrict to the first limit instances only in alphabetical order
+        if len(file_paths) < 1:
+            print(f"No files found at {folder_path}")
+            return
+
         file_paths = np.take(sorted(file_paths), indices)
 
         print(f"Adding folder {folder_path}")
