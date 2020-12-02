@@ -34,18 +34,6 @@ def flags():
         type=str
     )
     parser.add_argument(
-        '--num_clean',
-        default=10,
-        help='The number of clean photos to include in the database for each identity',
-        type=int
-    )
-    parser.add_argument(
-        '--num_decoys',
-        default=5,
-        help='The number of decoy photos from each identity that is provided for each other identity',
-        type=int
-    )
-    parser.add_argument(
         '--auth_file',
         default='azure_auth.json',
         help='A json file containing the authenticaiton secret and endpoint for the Azure face service',
@@ -85,7 +73,11 @@ class PersonGroupInterface:
                 self.person_group_name, person_name
             )
 
-    def _add_folder(self, folder_path, person_name, limit):
+    def _add_folder(self, folder_path, person_name, from_indx, to_indx):
+        '''
+        add all images at folder_path between alphabetically sorted from_indx and to_indx
+        to person of person_name in the Azure group
+        '''
         # List all jpeg, jpg and png images
         # glob returns full paths
         file_paths = [fn for fn in glob.glob(
@@ -93,7 +85,7 @@ class PersonGroupInterface:
         ) if fn.endswith("png") or fn.endswith("jpg") or fn.endswith("jpeg")]
 
         # Restrict to the first limit instances only in alphabetical order
-        file_paths = sorted(file_paths[:limit])
+        file_paths = sorted(file_paths)[from_indx:to_indx]
 
         print(f"Adding folder {folder_path}")
         # Add to Azure instance
@@ -110,7 +102,7 @@ class PersonGroupInterface:
             time.sleep(10)
 
     def add_images_for_person(
-            self, image_directory, attack_strategy, person_name, num_clean, num_decoys, epsilon):
+            self, image_directory, attack_strategy, person_name, epsilon):
         # Get all the protected identities.
         # Remember our folder structure is ground_truth_identity/attack_strategy/protected_identity/epsilon_X/png/*.png
         folders_wildcard = os.path.join(image_directory, person_name, attack_strategy, "*")
@@ -124,13 +116,16 @@ class PersonGroupInterface:
         # When epsilon = 0.0, we have clean images and it doesn't matter which identity is "being protected"
         # as they are all unmodified images but duplicated in each identity.
         clean_folder = os.path.join(protected_folders[0], "epsilon_0.0", "png")
-        self._add_folder(clean_folder, person_name, num_clean)
+
+        # For now, hard code that we take only 1  clean image - the first one alphabetically.
+        self._add_folder(clean_folder, person_name, 0, 1)
 
         # 2. Add decoy images belonging to this person_name in reality but modified to protect protected identities
-        for protected_identity_folder in protected_folders:
+        # For each identity, get one decoy at a different index.
+        for indx, protected_identity_folder in enumerate(protected_folders):
             full_folder_path = os.path.join(
                 protected_identity_folder, f"epsilon_{epsilon}", "png")
-            self._add_folder(full_folder_path, person_name, num_decoys)
+            self._add_folder(full_folder_path, person_name, indx + 1, indx + 2)
 
 
     def train(self):
@@ -157,7 +152,7 @@ def main(argv=None):
         auth_data = json.loads(f.read())
 
     epsilon_for_name = str(FLAGS.epsilon).replace(".", "p")
-    person_group_name = f"{FLAGS.attack_strategy}_{FLAGS.num_clean}_{FLAGS.num_decoys}_{epsilon_for_name}"
+    person_group_name = f"{FLAGS.attack_strategy}_1_1_{epsilon_for_name}"
     print(f"Building up person group {person_group_name}")
 
     pgi = PersonGroupInterface(
@@ -171,8 +166,6 @@ def main(argv=None):
             FLAGS.image_directory,
             FLAGS.attack_strategy,
             identity,
-            FLAGS.num_clean,
-            FLAGS.num_decoys,
             FLAGS.epsilon
         )
 
