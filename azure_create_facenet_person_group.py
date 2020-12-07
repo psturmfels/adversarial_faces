@@ -5,13 +5,15 @@ import time
 from azure.cognitiveservices.vision.face import FaceClient
 from msrest.authentication import CognitiveServicesCredentials
 from azure.cognitiveservices.vision.face.models import TrainingStatusType, Person
+from azure.cognitiveservices.vision.face.models import APIErrorException
 from tqdm import tqdm
 import json
 
 class AzureInterface:
     def __init__(
         self, folder, endpoint, key, epsilon, attack_strategy, image_format, num_clean, include_decoys):
-
+        self.associated_paths = []
+        self.associated_identities = []
         self.face_client = FaceClient(
              endpoint, CognitiveServicesCredentials(key))
 
@@ -91,6 +93,7 @@ class AzureInterface:
         if max_imgs > 0:
             paths_list = paths_list[:max_imgs]
 
+
         with open(self.log_file_path, "a") as f:
             for img_path in tqdm(paths_list):
                 try:
@@ -100,6 +103,8 @@ class AzureInterface:
                          open(img_path, "r+b")
                     )
                     f.write(f"{img_path}\n")
+                    self.associated_paths.append(img_path)
+                    self.associated_identities.append(person_name)
                 except APIErrorException as e:
                     print(f"Exception {e} for image {img_path}")
                 # Sleep to avoid triggering rate limiters
@@ -127,9 +132,9 @@ if __name__ == "__main__":
     with open("azure_auth.json", "r") as f:
         auth_data = json.loads(f.read())
 
-    for attack_name in ["mean_vggface2", "mean_casia-webface"]:
-        for epsilon in [0.1, 0.25, 0.5]:
-            for num_clean in [1, 5, 9]:
+    for attack_name in ["mean_vggface2"]:
+        for epsilon in [0.25, 0.5]:
+            for num_clean in [1, 5]:
                 ai = AzureInterface(
                         folder="/data/vggface/test_perturbed_sampled",
                         endpoint=auth_data["endpoint"],
@@ -140,4 +145,5 @@ if __name__ == "__main__":
                         num_clean=num_clean,
                         include_decoys=True
                     )
+                ai.train()
 
