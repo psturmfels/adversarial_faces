@@ -98,10 +98,10 @@ def measure_azure_recall(
             time.sleep(10)
 
 
-    if verbose:
-        for true_id, recognized_id, query in zip(true, identified_as, paths_of_query):
-            print("Face of {true_id} at {query} identitifed as {recognized_id}.".format(
-                true_id=true_id, recognized_id=recognized_id, query=query, nearest=nearest))
+    #if verbose:
+    #    for true_id, recognized_id, query in zip(true, identified_as, paths_of_query):
+    #        print("Face of {true_id} at {query} identitifed as {recognized_id}.".format(
+    #            true_id=true_id, recognized_id=recognized_id, query=query, nearest=nearest))
 
     return np.mean(discovery)
 
