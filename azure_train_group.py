@@ -28,6 +28,7 @@ def train(person_group_name, face_client):
             sys.exit('Training the person group has failed.')
         time.sleep(5)
 
-train("mean_vggface2_1_36_0p1", face_client)
-train("mean_vggface2_5_36_0p1", face_client)
+#train("mean_vggface2_1_36_0p1", face_client)
+#train("mean_vggface2_5_36_0p1", face_client)
+train("mean_vggface2_41_0_0p0", face_client)
 

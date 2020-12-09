@@ -132,8 +132,8 @@ if __name__ == "__main__":
     with open("azure_auth.json", "r") as f:
         auth_data = json.loads(f.read())
 
-    for attack_name in ["mean_vggface2"]:
-        for epsilon in [0.25, 0.5]:
+    for attack_name in ["ensemble_casia-webface"]:
+        for epsilon in [0.25]:
             for num_clean in [1, 5]:
                 ai = AzureInterface(
                         folder="/data/vggface/test_perturbed_sampled",
@@ -146,4 +146,31 @@ if __name__ == "__main__":
                         include_decoys=True
                     )
                 ai.train()
+#
+#    ai = AzureInterface(
+#            folder="/data/vggface/test_perturbed_sampled",
+#            endpoint=auth_data["endpoint"],
+#            key=auth_data["key"],
+#            epsilon=0.0,
+#            attack_strategy="mean_vggface2",
+#            image_format="png",
+#            num_clean=41,
+#            include_decoys=False
+#        )
+#
 
+#    for attack_name in ["mean_vggface2"]:
+#        for epsilon in [0.25, 0.5]:
+#            for num_clean in [1, 5]:
+#                ai = AzureInterface(
+#                        folder="/data/vggface/test_perturbed_sampled",
+#                        endpoint=auth_data["endpoint"],
+#                        key=auth_data["key"],
+#                        epsilon=epsilon,
+#                        attack_strategy=attack_name,
+#                        image_format="png",
+#                        num_clean=num_clean,
+#                        include_decoys=True
+#                    )
+#                ai.train()
+#

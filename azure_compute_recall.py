@@ -111,7 +111,7 @@ for epsilon in [0.1, 0.25, 0.5]:
         epsilon_for_name = str(epsilon).replace(".", "p")
         recall = measure_azure_recall(
             face_client,
-            f"mean_vggface2_{num_clean}_36_{epsilon_for_name}",
+            f"ensemble_casia-webface_{num_clean}_36_{epsilon_for_name}",
             num_query=5,
             verbose=True
         )
@@ -122,4 +122,33 @@ for epsilon in [0.1, 0.25, 0.5]:
         })
 
 results_df = pd.DataFrame(results).to_csv(
-        f"/home/ivan/pascal_adversarial_faces/results/azure_recall_mean_vggface2.csv")
+        f"/home/ivan/pascal_adversarial_faces/results/azure_recall_ensemble_casia-webface.csv")
+
+
+#results = []
+#for epsilon in [0.1, 0.25, 0.5]:
+#    for num_clean in [1, 5]:
+#        epsilon_for_name = str(epsilon).replace(".", "p")
+#        recall = measure_azure_recall(
+#            face_client,
+#            f"mean_vggface2_{num_clean}_36_{epsilon_for_name}",
+#            num_query=5,
+#            verbose=True
+#        )
+#        results.append({
+#            "epsilon": epsilon,
+#            "num_clean": num_clean,
+#            "recall": recall
+#        })
+#
+#results_df = pd.DataFrame(results).to_csv(
+#        f"/home/ivan/pascal_adversarial_faces/results/azure_recall_mean_vggface2.csv")
+#recall = measure_azure_recall(
+#        face_client,
+#        "mean_vggface2_41_0_0p0",
+#        num_query=5,
+#        verbose=False
+#        )
+#print(f"Azure clean recall: {recall}")
+#with open("/home/ivan/pascal_adversarial_faces/results/azure_recall_clean.txt", "a") as f:
+#    f.write(f"{recall}\n")
