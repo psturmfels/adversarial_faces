@@ -133,7 +133,7 @@ if __name__ == "__main__":
         auth_data = json.loads(f.read())
 
     for attack_name in ["ensemble_casia-webface"]:
-        for epsilon in [0.25]:
+        for epsilon in [0.5]:
             for num_clean in [1, 5]:
                 ai = AzureInterface(
                         folder="/data/vggface/test_perturbed_sampled",
